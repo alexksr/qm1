@@ -1,0 +1,10 @@
+[project]
+name = "mypackage"
+version = "0.0.0"
+dependencies = [
+    "matplotlib",
+    "numpy",
+    "scipy",
+    "pandas",
+    "IPython"
+]
