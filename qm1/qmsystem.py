@@ -2,19 +2,27 @@ import numpy as np
 from qm1.grid import *
 
 class QMSystem:
-  def __init__(self, pot, grid:Grid, mass:float=1) -> None:
+  def __init__(self, stat_pot, grid:Grid, mass:float=1) -> None:
     # set potential 
-    if callable(pot):
-      self.pot = np.array([pot(_x) for _x in list(grid.points)])
+    if callable(stat_pot):
+      self.stat_pot = np.array([stat_pot(_x) for _x in list(grid.points)])
     else:
       print('cannot call `pot`! init to zero potential')
-      self.pot = np.zeros([grid.num])
+      self.stat_pot = np.zeros([grid.num])
 
     # define mass (which is 1 in atomic units for the electron)
     self.mass = mass
 
     # store the grid
     self.grid = grid
+
+  def add_td_potential(self, td_pot: callable):
+    if callable(td_pot):
+      self.td_pot = td_pot
+    else:
+      print('add_td_potential: cannot call `td_pot`! init to dipol potential')
+      self.stat_pot = DipolTDPot()
+
 
 def ConstPot(const: float = 0.):
   """ Returns a vanishing (or constant) potential, solutions will be plain wave-like. """
@@ -73,3 +81,18 @@ def InterpolatePot(xs, vs):
       _pot = (x-xleft)/(xright-xleft)*(vright-vleft) + vleft
     return _pot
   return pot
+
+
+def DipolTDPot(omega:float=2*np.pi, amplitude:float=1., phase:float=0.):
+  """
+  Return the callable for a periodic time dependend dipol potential.
+  """
+  return lambda x,t:  np.sin(omega*t+phase) * x * amplitude
+
+
+
+def ZeroTDPot(omega:float=2*np.pi, amplitude:float=1., phase:float=0.):
+  """
+  Return the callable for a vanishing potential.
+  """
+  return lambda x,t:  0.

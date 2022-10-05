@@ -3,7 +3,7 @@ import numpy as np
 from scipy import sparse
 from qm1.grid import Grid
 from qm1.wavefunction import Wavefunction
-from qm1.qmsystem import QMSystem
+from qm1.qmsystem import DipolTDPot, QMSystem
 
 
 
@@ -35,11 +35,13 @@ class OperatorConst:
       # mul the constant part
       result = self * other.constOP
     else:
-      raise NotImplementedError('OperatorConst.__mul__: unknown `other` factor. The `other` might be of type `OperatorTD` with nontrivial time dependence for which multiplication is not implemented.')
+      raise NotImplementedError('OperatorConst.__mul__: unknown `other` factor. The `other` might be of type `OperatorTD` with nontrivial time dependence for which multiplication is not implemented.Type of other=', type(other))
     return result
   
   def __neg__(self):
-    self.sparse_mat = -self.sparse_mat
+    result = OperatorConst(self.grid)
+    result.sparse_mat = -self.sparse_mat
+    return result
 
   def __rmul__(self, other):
     """ __mul__ is fully commutative with itself and scalars """
@@ -95,7 +97,9 @@ class OperatorConst:
     """
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots(figsize=(10,10))
-    c =ax.matshow(self.matrix(), cmap="viridis")
+    zmin = np.min(self.matrix()[1:-1, 1:-1])
+    zmax = np.max(self.matrix()[1:-1, 1:-1])
+    c = ax.matshow(self.matrix(), cmap="viridis", vmin=zmin, vmax=zmax)
     fig.colorbar(c, ax=ax)
     plt.savefig(file, bbox_inches='tight')
     plt.close()
@@ -229,14 +233,14 @@ def LaplaceOp(grid:Grid):
   _op.second_deriv()
   return _op
 
-def PotentialOp(qsys:QMSystem):
+def StatPotentialOp(qsys:QMSystem):
   """
     Return the potential operator (local) for a given system (instance of `QMSystem`) 
     When vanishing bounadary conditions are set, add an "infinite" potential well at the lower and upper bounds of the grid
     For periodic b.c. the user must specify a periodic potential, otherwise the potential will jump.
   """
   _op = OperatorConst(qsys.grid)
-  _op.local(qsys.pot)
+  _op.local(qsys.stat_pot)
   if qsys.grid.bc == 'vanishing':
     _op.set_bounds(lb=1e+9, ub=1e+9)
   return _op
@@ -254,7 +258,7 @@ def HamiltonOp(qsys:QMSystem):
   """
    return the hamilton operator for a given grid system (instance of `QMSystem`)
   """
-  return KineticOp(qsys) + PotentialOp(qsys)
+  return KineticOp(qsys) + StatPotentialOp(qsys)
 
 def make_efficient(ops:list):
   """
@@ -340,6 +344,7 @@ class OperatorTD:
     """
     Evaluate the operator at a specific time, returning a constant operator.
     """
+    result = OperatorConst(self.grid)
     result = self.constOP
     for func, op in zip(self.funcs, self.ops):
       _locconstop = OperatorConst(self.grid)
@@ -448,8 +453,8 @@ class OperatorTD:
     from matplotlib.animation import FuncAnimation
     fig, ax = plt.subplots(figsize=(10, 10))
     # get color range
-    zmin = min([np.min(self.matrix(t=tgrid[_i])) for _i in range(len(tgrid))])
-    zmax = max([np.max(self.matrix(t=tgrid[_i])) for _i in range(len(tgrid))])
+    zmin = min([np.min(self.matrix(t=tgrid[_i])[1:-1, 1:-1]) for _i in range(len(tgrid))])
+    zmax = max([np.max(self.matrix(t=tgrid[_i])[1:-1, 1:-1]) for _i in range(len(tgrid))])
     def animate(i):
         ax.clear()
         matshow = ax.imshow(self.matrix(t=tgrid[i]), vmin=zmin, vmax=zmax)
@@ -458,3 +463,16 @@ class OperatorTD:
     ani.save(file, writer='imagemagick', fps=24)
     plt.close()
     
+
+def TDHamiltonOp(qsys: QMSystem):
+  """
+   return the hamilton operator for a given grid system (instance of `QMSystem`)
+  """
+  if not qsys.td_pot:
+    print('WARNING: TDHamiltonOp: `td_pot` is not set in the qsystem! Set to DipolePot!')
+    qsys.add_td_potential(DipolTDPot())
+  op_kinetic = KineticOp(qsys)
+  op_td_pot = OperatorTD(qsys.grid, qsys.td_pot)
+  op_stat_pot = StatPotentialOp(qsys)
+  op_hamilton = op_kinetic + op_stat_pot + op_td_pot
+  return op_hamilton, op_kinetic, op_stat_pot, op_td_pot

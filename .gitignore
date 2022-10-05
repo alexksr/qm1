@@ -1,6 +1,7 @@
 *.mp4
 *.gif
 *.png
+future
 
 # GitHubs standard python ignores, taken from: https://github.com/github/gitignore
 __pycache__

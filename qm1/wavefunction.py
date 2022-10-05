@@ -57,7 +57,10 @@ class Wavefunction:
     return None
 
   def set_via_func(self, func):
-    """ set the wavefunction by evaluating the given function on the grid"""
+    """ 
+    Set the wavefunction by evaluating the given function on the grid.
+    Automatically do a normalization.
+    """
     if callable(func):
       self.func = func(self.grid.points)
     else:
@@ -84,20 +87,29 @@ class Wavefunction:
     else:
       raise NotImplementedError('unknown boundary condition `'+self.bc+'`. Stop!')
     
-  def evolve(self, tmax, dt, op_rhs): 
+  def get_observables(self, ops:list):
+    """
+    Return the expectation value and variance for each operator in the list of operators `ops`.
+    """
+    obs = []
+    for _op in ops:
+      obs.append( [self.expectation_value(_op), self.variance(_op)] )
+    return np.array(obs)
+  
+  def evolve(self, tgrid:np.ndarray, op_rhs:'OperatorTD'): 
     """ propagate the wavefunction in time 
     - return a list `psis` of wave functions, where `psis[i] = psi(t_i)` with `t_i=i*dt`
     """
     # callable for the ivp solver
-    def func(t, x): return op_rhs.sparse_mat(t) * x
-    # time grid
-    tgrid = np.arange(0., tmax, dt)
-    num = tgrid.size
+    def ipvfunc(t, vec): return op_rhs.sparse_mat(t) * vec
+
     # solve 
-    data=integrate.solve_ivp(fun=func, t_span=[0., tmax], y0=self.func, t_eval=tgrid, method="RK23")
+    data = integrate.solve_ivp(fun=ipvfunc, t_span=[tgrid[0], tgrid[-1]], y0=self.func, t_eval=tgrid, method="RK45")
+  
+
     # make the raw output data to class wavefuctions again
     psis = []
-    for _i in range(num):
+    for _i in range(tgrid.size):
       psi=Wavefunction(self.grid)
       psi.set_via_array(data.y[:,_i])
       psis.append(psi)
@@ -115,3 +127,11 @@ class Wavefunction:
     fig.legend(loc='upper center', ncol=3)  # , bbox_to_anchor=(1., 1.))
     plt.savefig(file)
     plt.close()
+
+
+def GaussianWavePackage(grid: Grid, mu: float = 0, sigma: float = 1, k: float=1):
+  def prep_wf(x): return np.exp(-(x-mu)**2 / (2.0 * sigma**2)) * np.exp(-1j * k * x)
+  wf = Wavefunction(grid)
+  wf.set_via_func(prep_wf)
+  return wf
+
