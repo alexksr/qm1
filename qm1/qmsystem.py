@@ -1,28 +1,38 @@
 import numpy as np
 from qm1.grid import *
+from typing import Callable
 
 class QMSystem:
-  def __init__(self, stat_pot, grid:Grid, mass:float=1) -> None:
+  """
+  Defines the quantum mechanical system:
+    - grid
+    - mass of the particle
+    - stationary potential
+    - optionally: time-dependent potential
+  """
+
+  def __init__(self,  grid: Grid, stat_pot: Callable[[float], float], td_pot: Callable[[float, float], float] = None, mass: float = 1) -> None:
+    # store the grid
+    self.grid = grid
+    
     # set potential 
     if callable(stat_pot):
-      self.stat_pot = np.array([stat_pot(_x) for _x in list(grid.points)])
+      self.stat_pot = stat_pot
     else:
-      print('cannot call `pot`! init to zero potential')
-      self.stat_pot = np.zeros([grid.num])
+      print('cannot call `stat_pot`! init to zero potential')
+      self.stat_pot = lambda _x: 0.
 
     # define mass (which is 1 in atomic units for the electron)
     self.mass = mass
 
-    # store the grid
-    self.grid = grid
-
-  def add_td_potential(self, td_pot: callable):
-    if callable(td_pot):
+    # td potential
+    if td_pot and callable(td_pot):
       self.td_pot = td_pot
-    else:
-      print('add_td_potential: cannot call `td_pot`! init to dipol potential')
-      self.stat_pot = DipolTDPot()
-
+    
+    # full potential
+    def _full_pot(_x,_t):
+      return self.td_pot(_x, _t)+self.stat_pot(_x)
+    self.full_pot = _full_pot
 
 def ConstPot(const: float = 0.):
   """ Returns a vanishing (or constant) potential, solutions will be plain wave-like. """
@@ -83,16 +93,29 @@ def InterpolatePot(xs, vs):
   return pot
 
 
-def DipolTDPot(omega:float=2*np.pi, amplitude:float=1., phase:float=0.):
-  """
-  Return the callable for a periodic time dependend dipol potential.
-  """
-  return lambda x,t:  np.sin(omega*t+phase) * x * amplitude
-
-
-
 def ZeroTDPot(omega:float=2*np.pi, amplitude:float=1., phase:float=0.):
   """
   Return the callable for a vanishing potential.
   """
   return lambda x,t:  0.
+
+def DipolTDPot(omega: float = 2*np.pi, k: float = 2*np.pi, amplitude: float = 1., phase: float = 0.):
+  """
+  Return the callable for a periodic time dependend dipol potential.
+  $$
+  V(x,t) = A \sin(\omega t - kx +\varphi)
+  $$
+  """
+  return lambda x, t:  np.sin(omega*t-k*x+phase) * amplitude
+
+
+def GrowingBarrierTDPot(tstart: float = 0., tstop: float = 1., vstep: float = 1., xstart: float = -1., xstop: float = +1.):
+  """
+  Return the callable for a growing time dependend barrier potential.
+  In the interval `xmin < x < xmax` a barrier (or pod) is growing from depth 0 to `max_depth` in time interval `tmin < t < tmax`
+  """
+  def _func(x,t):
+    barrier = vstep if xstart < x < xstop else 0.
+    ftime = 0. if t < tstart else ( (t-tstart)/(tstop-tstart) if tstart < t < tstop else 1. )
+    return barrier * ftime
+  return _func

@@ -1,3 +1,4 @@
+from multiprocessing.sharedctypes import Value
 import numpy as np
 import matplotlib.pyplot as plt
 from qm1.operators import OperatorConst
@@ -5,18 +6,17 @@ from qm1.qmsystem import QMSystem
 from qm1.wavefunction import Wavefunction
 
 class Eigensystem:
-  def __init__(self, qsys:QMSystem, operator: OperatorConst, num:int=10):
+  def __init__(self, operator: OperatorConst, num:int=10):
     self.num = num
     self.op = operator
     self.grid = operator.grid
-    self.qsys = qsys
 
     # get a generic initial guess wf
     init_wf = Wavefunction(self.grid)
     length = self.grid.xmax-self.grid.xmin
     mu, sigma = self.grid.xmin + 0.5*length, 0.1
     def func(x): return np.sin((x-mu)/length*np.pi) * np.exp(-0.5*((x-mu)/length/sigma)**2)
-    init_wf.set_via_func(func)
+    init_wf.from_func(func)
 
     # solve the evp
     self.eigvals, self.eigstates = operator.eigen_system(self.num, init_wf)
@@ -27,20 +27,26 @@ class Eigensystem:
 
   def decompose(self, wavefunc: Wavefunction):
     """ decompose a wavefunction into a spectral basis with coefficients and rest term"""
-    coefficients = []
+    coefficients = np.zeros((self.num))
     for _i in range(self.num):
-      coefficients.append(np.abs(wavefunc.scalar_prod(self.eigstates[_i]))**2.)
-    coefficients = np.array(coefficients)
-    rest = 1.-np.sum(coefficients)
+      coefficients[_i] = wavefunc.scalar_prod(self.eigstates[_i])
+    p_coverage = np.sum(np.abs(coefficients)**2)
+    if p_coverage>1.: 
+      raise ValueError('Probabilities sum to {:.4f} (more than one). corrupt eigensystem or low spatial resolution?'.format(p_coverage))
+    rest = 1.-np.sum(np.abs(coefficients)**2)
     return coefficients, rest
 
-  def show(self, file):
-    fig, (ax0, ax1)=plt.subplots(2, 1, figsize = (15, 5), gridspec_kw = {'height_ratios': [4, 2]}, sharex=True)
-    fig.subplots_adjust(hspace = .0)
+  def show(self, file:str=None, op_pot:OperatorConst=None):
+    if not op_pot is None:
+      fig, (ax0, ax1)=plt.subplots(2, 1, figsize = (15, 5), gridspec_kw = {'height_ratios': [4, 2]}, sharex=True)
+      fig.subplots_adjust(hspace = .0)
+    else:
+      fig, ax0 = plt.subplots(figsize=(15, 7))
     colors = [plt.cm.tab10(i) for i in range(self.num)]
-    alphas = [((self.num-i) / self.num)**2. for i in range(self.num)]
+    alphas = [((self.num-0.5*i ) / self.num)**2. for i in range(self.num)]
     ax0.set_title('eigenstates of the hamiltonian')
-    ax0.set_ylabel('wave function')
+    ax0.set_ylabel('eigen states / wave functions')
+    ax0.set_xlabel('position')
     ax0.set_xlim((self.grid.xmin, self.grid.xmax))
     for _i, (_eigs, _col, _a) in enumerate(zip(self.eigstates, colors, alphas)):
       ax0.plot(self.grid.points, _eigs.func, label='state '+str(_i), alpha=_a, color=_col)
@@ -49,12 +55,16 @@ class Eigensystem:
     axt.set_ylabel('operator eigenvalues')
     for _eigval, _col, _a in zip(self.eigvals, colors, alphas):
       axt.axhline(_eigval, color=_col, alpha=_a, ls='--')
-    ax1.set_xlim((self.grid.xmin, self.grid.xmax))
-    ax1.plot(self.grid.points, self.qsys.stat_pot, "k")
-    ax1.set_xlabel('position')
-    ax1.set_ylabel('potential')
-    plt.savefig(file)
-    plt.close()
+    if not op_pot is None:
+      ax1.set_xlim((self.grid.xmin, self.grid.xmax))
+      ax1.plot(self.grid.points, op_pot.get_diag(), "k")
+      ax1.set_xlabel('position')
+      ax1.set_ylabel('potential')
+    if file:
+      plt.savefig(file)
+      plt.close()
+    else:
+      plt.show()
 
 
   def get_observables(self, ops: list):

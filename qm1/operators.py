@@ -1,11 +1,11 @@
-from calendar import c
 import numpy as np
 from scipy import sparse
+from qm1.basics import timeit_multiple
 from qm1.grid import Grid
 from qm1.wavefunction import Wavefunction
-from qm1.qmsystem import DipolTDPot, QMSystem
-
-
+from qm1.qmsystem import QMSystem
+from typing import Union, Callable
+from matplotlib.animation import FuncAnimation, FFMpegWriter
 
 
 
@@ -22,9 +22,14 @@ class OperatorConst:
     self.grid = grid
     self.sparse_mat = sparse.lil_matrix((self.grid.num, self.grid.num))
 
+  def copy(self)->"OperatorConst":
+    result = OperatorConst(self.grid)
+    result.sparse_mat = 0 + self.sparse_mat
+    return result
+
   def __mul__(self, other):
     """ multiply a operator by a constant or element wise with another Oprator: used for for combining operators to more complex operators  """
-    result = OperatorConst(self.grid)
+    result = self.copy()
     if isinstance(other, OperatorConst):
       result.sparse_mat = other.sparse_mat * self.sparse_mat
     elif isinstance(other, float) or isinstance(other, int) or isinstance(other, complex):
@@ -39,7 +44,7 @@ class OperatorConst:
     return result
   
   def __neg__(self):
-    result = OperatorConst(self.grid)
+    result = self.copy()
     result.sparse_mat = -self.sparse_mat
     return result
 
@@ -52,7 +57,7 @@ class OperatorConst:
     Add operator and another quantitiy.
     Relies on the __add__ of sparse_mat
     """
-    result = OperatorConst(self.grid)
+    result = self.copy()
     if isinstance(other, OperatorConst):
       result.sparse_mat = self.sparse_mat + other.sparse_mat
     elif isinstance(other, float) or isinstance(other, int) or isinstance(other, complex):
@@ -67,7 +72,7 @@ class OperatorConst:
 
   def __pow__(self, power:int) -> 'OperatorConst':
     """ exponentiate an operator : used for for combining operators to more complex operators  """
-    result = OperatorConst(self.grid)
+    result = self.copy()
     result.sparse_mat = self.sparse_mat**power
     return result
 
@@ -78,22 +83,19 @@ class OperatorConst:
     return result
 
   def __str__(self):
-    """write 4x4 blocks of the (upper|lower)x(left|right) blocks of the matrix"""
-    header = str(type(self))+" object with values ...\n"
-    k=4
-    ul_block = [ _str.replace('[[', '[').replace(']]',']').replace(' [', '[') for _str in self.sparse_mat.todense()[:k, :k].__str__().splitlines()]
-    ur_block = [ _str.replace('[[', '[').replace(']]',']').replace(' [', '[') for _str in self.sparse_mat.todense()[:k, -k:].__str__().splitlines()]
-    ll_block = [ _str.replace('[[', '[').replace(']]',']').replace(' [', '[') for _str in self.sparse_mat.todense()[-k:, :k].__str__().splitlines()]
-    lr_block = [ _str.replace('[[', '[').replace(']]',']').replace(' [', '[') for _str in self.sparse_mat.todense()[-k:, -k:].__str__().splitlines()]
-    upper, lower = '', ''
-    for _i in range(k):
-      upper += ul_block[_i]+' ... '+ur_block[_i]+'\n'
-      lower += ll_block[_i]+' ... '+lr_block[_i]+'\n'
-    return header+upper+' ... \n'+lower
+    """ the __str__ is borrowed from np.ndarray """
+    return self.matrix().__str__()
 
-  def show(self, file):
+  def is_local(self):
+    """ Checks whether the operator is local (no off-diagonal elements)"""
+    mat = self.matrix()
+    count = np.count_nonzero(mat - np.diag(np.diagonal(mat)))
+    return count==0
+
+  def show(self, file:str=None):
     """
     Save a graphical representation of the matrix to file.
+    - only shows the real part
     """
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots(figsize=(10,10))
@@ -101,28 +103,33 @@ class OperatorConst:
     zmax = np.max(self.matrix()[1:-1, 1:-1])
     c = ax.matshow(self.matrix(), cmap="viridis", vmin=zmin, vmax=zmax)
     fig.colorbar(c, ax=ax)
-    plt.savefig(file, bbox_inches='tight')
-    plt.close()
+    if file:
+      plt.savefig(file)
+      plt.close()
+    else:
+      plt.show()    
 
+  def get_diag(self):
+    """ get the matrix diagonal of the operator """
+    return self.sparse_mat.diagonal()
 
   def matrix(self):
     """return a (printable) dense version of the operator"""
     return self.sparse_mat.todense()
+
+  def from_matrix(self, mat):
+    """ return an operator from a matrix"""
+    self.sparse_mat = sparse.lil_matrix(mat)
 
   def set_diag(self, diag:list, offset:list):
     """ set the matrix diagonals of the operator """
     for d, o in zip(diag, offset):
       self.sparse_mat.setdiag(values=d, k=o)
     if self.grid.bc=='vanishing':
-      self.sparse_mat[self.grid.num-1, :] = 0.
+      self.sparse_mat[-1, :] = 0.
       self.sparse_mat[0, :] = 0.
-
-  def set_bounds(self, lb: float, ub: float):
-    """ set the value of the operator at lower and upper bounds """
-    self.sparse_mat[ 0,  0] = lb
-    self.sparse_mat[-1, -1] = ub
       
-  def local(self, value):
+  def local(self, value:Union[Callable[[float], float],np.ndarray]):
     """ operator representing a local operation """
     if isinstance(value, np.ndarray):
       self.sparse_mat.setdiag(values=value, k=0)
@@ -130,6 +137,9 @@ class OperatorConst:
       self.sparse_mat.setdiag(values=np.array([value(_x) for _x in list(self.grid.points)]))
     else:
       self.sparse_mat.setdiag(values=value, k=0)
+    if self.grid.bc == 'vanishing':
+      self.sparse_mat[-1, :] = 0.
+      self.sparse_mat[0, :] = 0.
 
   def first_deriv(self):
     """ set the matrix to the grids derivative operator """
@@ -143,11 +153,13 @@ class OperatorConst:
     """ make the sparse matrix more efficient with the csr format """
     self.sparse_mat = self.sparse_mat.tocsr()
 
+  
   def eigen_system(self, k:int, init_wf:Wavefunction=None, initialguess_eigval_0=None):
     """
     return the lowest `k` eigenvalues and eigen vectors from the eigensystem of the operator (in space representation)
      - `lowest`  means smallest real part (`which='SR'`)
     """
+    from timeit import default_timer as timer
 
     # prepare initial data
     if init_wf is None:
@@ -175,65 +187,70 @@ class OperatorConst:
     eigstate = []
     for i in range(k):
       es = Wavefunction(self.grid)
-      es.set_via_array(eigvec[i])
+      es.from_array(eigvec[i])
       eigstate.append(es)
 
     return eigval, eigstate
 
 
-def IdentityOp(grid: Grid):
+def IdentityOp(grid: Grid) -> OperatorConst:
   """
-   return the identity operator  for a given system (instance of `QMSystem`) 
+   return the identity operator for a given system (instance of `QMSystem`) 
   """
   _op = OperatorConst(grid)
   _op.local(1.)
-  # make_efficient([_op])
+  _op.finalize()
   return _op
 
 
 
-def ZeroOp(grid: Grid):
+def ZeroOp(grid: Grid) -> OperatorConst:
   """
    return the zero operator for a given system (instance of `QMSystem`) 
   """
   _op = OperatorConst(grid)
   _op.local(0.)
+  _op.finalize()
   return _op
 
-def PositionOp(grid:Grid):
+def PositionOp(grid:Grid) -> OperatorConst:
   """
    return the position operator (local) for a given system (instance of `QMSystem`) 
   """
   _op = OperatorConst(grid)
   _op.local(grid.points)
+  _op.finalize()
   return _op
 
-def GradientOp(grid:Grid):
+def GradientOp(grid:Grid) -> OperatorConst:
   """
    return the gradient operator for a given system (instance of `QMSystem`) 
   """
   _op = OperatorConst(grid)
   _op.first_deriv()
+  _op.finalize()
   return _op
 
-def MomentumOp(grid:Grid):
+def MomentumOp(grid:Grid) -> OperatorConst:
   """
    return the momentum operator for a given system (instance of `QMSystem`) 
   """
   _op = OperatorConst(grid)
   _op.first_deriv()
   _op = _op * (-1j)
+  _op.finalize()
   return _op
 
-def LaplaceOp(grid:Grid):
+def LaplaceOp(grid:Grid) -> OperatorConst:
   """
    return the laplace operator for a given system (instance of `QMSystem`) 
   """
   _op = OperatorConst(grid)
   _op.second_deriv()
+  _op.finalize()
   return _op
 
-def StatPotentialOp(qsys:QMSystem):
+def StatPotentialOp(qsys:QMSystem) -> OperatorConst:
   """
     Return the potential operator (local) for a given system (instance of `QMSystem`) 
     When vanishing bounadary conditions are set, add an "infinite" potential well at the lower and upper bounds of the grid
@@ -241,24 +258,17 @@ def StatPotentialOp(qsys:QMSystem):
   """
   _op = OperatorConst(qsys.grid)
   _op.local(qsys.stat_pot)
-  if qsys.grid.bc == 'vanishing':
-    _op.set_bounds(lb=1e+9, ub=1e+9)
+  _op.finalize()
   return _op
 
-def KineticOp(qsys:QMSystem):
+def KineticOp(qsys:QMSystem) -> OperatorConst:
   """
     Return the kinetic energy operator for a given system (instance of `QMSystem`) 
   """
   _op = LaplaceOp(qsys.grid)
   _op = _op * (-0.5/qsys.mass)
+  _op.finalize()
   return _op
-
-
-def HamiltonOp(qsys:QMSystem):
-  """
-   return the hamilton operator for a given grid system (instance of `QMSystem`)
-  """
-  return KineticOp(qsys) + StatPotentialOp(qsys)
 
 def make_efficient(ops:list):
   """
@@ -294,6 +304,83 @@ class OperatorTD:
   # TODO: impl make_efficient
   """
 
+  def __init__(self, grid: Grid, func: callable = None, op: OperatorConst = None):
+    self.grid = grid
+    # constant part
+    self.constOP = ZeroOp(self.grid)
+    # number of contributions
+    self.num = 0
+    # list of TD functions
+    self.funcs = []
+    # list of constant operators
+    self.ops = []
+    # if there is a func or constop, readily add it:
+    if not func is None and not op is None:
+      self.num = 1
+      self.funcs.append(func)
+      self.ops.append(op)
+    elif func is None and not op is None:
+      self.constOP = op
+    elif not func is None and op is None:
+      self.num = 1
+      self.funcs.append(func)
+      self.ops.append(IdentityOp(self.grid))
+    return
+
+
+  def info(self):
+    return type(self), ' with num=', self.num, 'TD parts'
+
+  def __call__(self, t: float, wavefunc: Wavefunction) -> Wavefunction:
+    """
+    Apply the operator at time t to a (wave) function.
+    This creates a new matrix each time and thus is of order $n**2$ in the worst case (dense matrix).
+    """
+    result = Wavefunction(wavefunc.grid)
+    result.func = self.constOP(wavefunc)
+    for func, op in zip(self.funcs, self.ops):
+      _locconstop = OperatorConst(self.grid).local(lambda _x: func(_x, t))
+      result.func = result.func + _locconstop(op(wavefunc))
+    return result
+
+  def __str__(self):
+    _str = str(type(self))+" object with "
+    _str += "non-zero constOP" if np.any(self.constOP.matrix()) else "zero constOP"
+    _str += " and " +str(self.num)+" time dependend contributions"
+    return _str
+
+  def eval(self, t: float) -> OperatorConst:
+    """
+    Evaluate the operator at a specific time, returning a constant operator.
+    """
+    result = self.constOP.copy()
+    for func, op in zip(self.funcs, self.ops):
+      _locconstop = OperatorConst(self.grid)
+      _locconstop.local(lambda _x: func(_x, t))
+      result = result + _locconstop * op
+    return result
+
+  def sparse_mat(self, t: float) -> 'OperatorConst':
+    """
+    Evaluate the operator at a specific time, returning the sparse matrix of constant operator.
+    """
+    return self.eval(t).sparse_mat
+
+  def matrix(self, t: float) -> np.ndarray:
+    """
+    Evaluate the operator at a specific time, returning the dense matrix of constant operator.
+    """
+    return self.sparse_mat(t).todense()
+
+  def copy(self):
+    result = OperatorTD(self.grid)
+    result.constOP = self.constOP + 0 
+    result.num = 0 + self.num
+    result.funcs = [] + self.funcs
+    result.ops = [] + self.ops
+    return result
+
+
   def __init__(self, grid: Grid, func: callable = None, constop: OperatorConst = None):
     self.grid = grid
     # constant part
@@ -318,57 +405,11 @@ class OperatorTD:
 
 
 
-  def __call__(self, t: float, wavefunc: Wavefunction) -> Wavefunction:
-    """
-    Apply the operator at time t to a (wave) function.
-    This creates a new matrix each time and thus is of order $n**2$ in the worst case (dense matrix).
-    """
-    result = Wavefunction(wavefunc.grid)
-    result.func = self.constOP(wavefunc)
-    for func, op in zip(self.funcs, self.ops):
-      _locconstop = OperatorConst(self.grid).local(lambda _x: func(_x, t))
-      result.func = result.func + _locconstop(op(wavefunc))
-    return result
-
-  def __str__(self):
-    _str = str(type(self))+" object with "
-    _str += "non-zero constOP" if np.any(self.constOP.matrix()) else "zero constOP"
-    _str += " and " +str(self.num)+" time dependend contributions"
-    return _str
-
-
-
-
-
-  def eval(self, t: float) -> OperatorConst:
-    """
-    Evaluate the operator at a specific time, returning a constant operator.
-    """
-    result = OperatorConst(self.grid)
-    result = self.constOP
-    for func, op in zip(self.funcs, self.ops):
-      _locconstop = OperatorConst(self.grid)
-      _locconstop.local(lambda _x: func(_x, t))
-      result = result + _locconstop * op
-    return result
-
-  def sparse_mat(self, t: float) -> 'OperatorConst':
-    """
-    Evaluate the operator at a specific time, returning the sparse matrix of constant operator.
-    """
-    return self.eval(t).sparse_mat
-
-  def matrix(self, t: float) -> np.ndarray:
-    """
-    Evaluate the operator at a specific time, returning the dense matrix of constant operator.
-    """
-    return self.sparse_mat(t).todense()
-
   def __add__(self, other) -> 'OperatorTD':
     """
     Add operator and another quantitiy.
     """
-    result = OperatorTD(self.grid)
+    result = self.copy()
     # check behaviour for each instance
     if isinstance(other, OperatorConst):
       # add to the constant part of TDOP
@@ -381,7 +422,6 @@ class OperatorTD:
       result.funcs = self.funcs + other.funcs
       result.ops = self.ops + other.ops
     elif isinstance(other, float) or isinstance(other, int) or isinstance(other, complex):
-      # any other scalar: add other*unitymatrix
       result.constOP = self.constOP + other * IdentityOp(self.grid)
     else:
       # give it a try: call other.__add__(result)
@@ -393,7 +433,7 @@ class OperatorTD:
     $O_T * O_c = ( O_0 + \sum_{k=1}^N f_k(t) O_k ) * O_c = O_0O_c + \sum_{k=1}^N f_k(t) O_kO_c $
     $O_T * \tilde{O}_T = ( O_0 + \sum_{k=1}^N f_k(t) O_k ) * ( \tilde{O}_0 + \sum_{k=1}^N f_k(t) \tilde{O}_k ) =  O_0\tilde{O}_0 + \sum_{k,k=1}^{NB,\tilde{N}} f_k(t)\tilde{f}_k(t) O_k\tilde{O}_k  $
     """
-    result = OperatorTD(self.grid)
+    result = self.copy()
     # check behaviour for each instance
     if isinstance(other, OperatorConst):
       # mul the constant part of TDOP with other
@@ -426,8 +466,8 @@ class OperatorTD:
     """ 
     Negate the operator by negating the matrices. Relies on the negation of `OperatorConst`
     """
-    result = self
-    self.ops = [-_op for _op in self.ops]
+    result = self.copy()
+    result.ops = [-_op for _op in self.ops]
     return result
 
   def __sub__(self, other) -> 'OperatorTD':
@@ -440,39 +480,86 @@ class OperatorTD:
 
   def __pow__(self, power: int) -> 'OperatorTD':
     """ exponentiate an operator : used for for combining operators to more complex operators  """
-    result = self
+    result = self.copy()
     for _ in range(power-1):
       result = result * self
     return result
 
-  def show(self, tgrid, file):
+
+  def is_local(self):
+    """ Checks whether the operator is local (no off-diagonal elements). """
+    local = self.constOP.is_local()
+    for _op in self.ops:
+      local = local and _op.is_local()
+    return local
+
+  def finalize(self):
+    """ make the sparse matrices more efficient with the csr format """
+    self.constOP.finalize()
+    for _op in self.ops:
+      _op.finalize()
+    return None
+
+  def show(self, tgrid:np.ndarray, file: str = None) -> Union[None, FuncAnimation]:
     """
     Save a graphical representation of the matrix to file.
     """
     import matplotlib.pyplot as plt
-    from matplotlib.animation import FuncAnimation
+    # disable immediate plotting in interactive mode
+    plt.ioff()
+    # set a writer
+    writer = FFMpegWriter(fps=24)
+    # plotting
     fig, ax = plt.subplots(figsize=(10, 10))
     # get color range
-    zmin = min([np.min(self.matrix(t=tgrid[_i])[1:-1, 1:-1]) for _i in range(len(tgrid))])
-    zmax = max([np.max(self.matrix(t=tgrid[_i])[1:-1, 1:-1]) for _i in range(len(tgrid))])
-    def animate(i):
+    zmin = min([np.min(self.matrix(_t)[1:-1, 1:-1]) for _t in tgrid])
+    zmax = max([np.max(self.matrix(_t)[1:-1, 1:-1]) for _t in tgrid])
+    zmin, zmax = zmin-0.01*(zmax-zmin), zmax+0.01*(zmax-zmin)
+
+    if self.is_local():
+      def animate(i):
+        ax.clear()
+        ax.set_ylim((zmin, zmax))
+        line = ax.plot(self.grid.points, self.eval(t=tgrid[i]).get_diag())
+        return [line]
+    else:
+      def animate(i):
         ax.clear()
         matshow = ax.imshow(self.matrix(t=tgrid[i]), vmin=zmin, vmax=zmax)
         return [matshow]
+
     ani = FuncAnimation(fig=fig, func=animate, frames=len(tgrid), interval=1000./24.)
-    ani.save(file, writer='imagemagick', fps=24)
+    if file: ani.save(file, writer=writer)
+    # close the figure
     plt.close()
+    # enable plotting again in interactive mode
+    plt.ion()
+    return ani
     
 
-def TDHamiltonOp(qsys: QMSystem):
+
+def TDPotentialOp(qsys:QMSystem)->OperatorTD: 
+  """
+  return a dipol potential operator from a time dependent callable.  
+  """
+  _op = OperatorTD(qsys.grid, func=qsys.td_pot)
+  return _op
+
+
+def HamiltonOp(qsys: QMSystem) -> Union[OperatorConst, OperatorTD]:
   """
    return the hamilton operator for a given grid system (instance of `QMSystem`)
   """
-  if not qsys.td_pot:
-    print('WARNING: TDHamiltonOp: `td_pot` is not set in the qsystem! Set to DipolePot!')
-    qsys.add_td_potential(DipolTDPot())
-  op_kinetic = KineticOp(qsys)
-  op_td_pot = OperatorTD(qsys.grid, qsys.td_pot)
-  op_stat_pot = StatPotentialOp(qsys)
-  op_hamilton = op_kinetic + op_stat_pot + op_td_pot
-  return op_hamilton, op_kinetic, op_stat_pot, op_td_pot
+  # static part
+  _op = KineticOp(qsys) + StatPotentialOp(qsys)
+
+  # add td part if present
+  try:
+    _op += TDPotentialOp(qsys)
+  except AttributeError:
+    pass
+
+
+  # make more efficient
+  _op.finalize()
+  return _op
