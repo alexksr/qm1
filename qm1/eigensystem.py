@@ -44,7 +44,7 @@ class Eigensystem:
       fig, ax0 = plt.subplots(figsize=(15, 7))
     colors = [plt.cm.tab10(i) for i in range(self.num)]
     alphas = [((self.num-0.5*i ) / self.num)**2. for i in range(self.num)]
-    ax0.set_title('eigenstates of the hamiltonian')
+    ax0.set_title('eigen system')
     ax0.set_ylabel('eigen states / wave functions')
     ax0.set_xlabel('position')
     ax0.set_xlim((self.grid.xmin, self.grid.xmax))

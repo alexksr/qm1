@@ -34,23 +34,27 @@ class QMSystem:
       return self.td_pot(_x, _t)+self.stat_pot(_x)
     self.full_pot = _full_pot
 
-def ConstPot(const: float = 0.):
+
+def ConstPot(const: float = 0.) -> Callable[[float], float]:
   """ Returns a vanishing (or constant) potential, solutions will be plain wave-like. """
   return lambda x: const
 
-def StepPot(xstep: float = 0., ystep: float = 1.):
+
+def StepPot(xstep: float = 0., ystep: float = 1.) -> Callable[[float], float]:
   """ Returns a step potential `ystep if x<=xstep else 0.` """
   return lambda x: ystep if x <= xstep else 0.
 
-def BarrierPot(xstart: float = 0., xstop: float = 1., vstep: float = 1.):
+def BarrierPot(xstart: float = 0., xstop: float = 1., vstep: float = 1.)->Callable[[float],float]:
   """ Returns a potential barrier `ystep if xstart<=x<=xstop else 0.` """
   return lambda x: vstep if xstart <= x <= xstop else 0.
 
-def HarmonicPot(omega: float = 1., mass: float = 1):
+
+def HarmonicPot(omega: float = 1., mass: float = 1) -> Callable[[float], float]:
   """ Returns a harmonic potential with parameter `omega`"""
   return lambda x: 0.5*mass*omega**2*x**2
 
-def DeltaPot(grid: Grid, x0: float = 0., v0: float = 1.):
+
+def DeltaPot(grid: Grid, x0: float = 0., v0: float = 1.) -> Callable[[float], float]:
   """ 
   Returns a delta-like potential with strength `v0` at position `x0`.
   REMARK: Since the delta-distribution cannot be represented on a grid, use its box-like analogon.
@@ -58,7 +62,8 @@ def DeltaPot(grid: Grid, x0: float = 0., v0: float = 1.):
   """
   return lambda x: -v0/grid.dx if -grid.dx <= x-x0 <= grid.dx else 0.
 
-def DoubleDeltaPot(grid: Grid, x0: float = 0., v0: float = 1., x1: float = 1., v1: float = 1.):
+
+def DoubleDeltaPot(grid: Grid, x0: float = 0., v0: float = 1., x1: float = 1., v1: float = 1.) -> Callable[[float], float]:
   """ 
   Returns a double delta-like potential with strength `v0, v1` at position `x0, x1`.
   REMARK: Since the delta-distribution cannot be represented on a grid, use its box-like analogon.
@@ -73,7 +78,8 @@ def DoubleDeltaPot(grid: Grid, x0: float = 0., v0: float = 1., x1: float = 1., v
     return _pot
   return pot
 
-def InterpolatePot(xs, vs):
+
+def InterpolatePot(xs, vs) -> Callable[[float], float]:
   """
   Returns a potential with linear interpolation between the given points (e.g. step potential, triangle, saw tooth,...), otherwise zero.
   REMARK: the list of xs must be ordered.
@@ -93,13 +99,14 @@ def InterpolatePot(xs, vs):
   return pot
 
 
-def ZeroTDPot(omega:float=2*np.pi, amplitude:float=1., phase:float=0.):
+def ZeroTDPot(omega: float = 2*np.pi, amplitude: float = 1., phase: float = 0.) -> Callable[[float,float], float]:
   """
   Return the callable for a vanishing potential.
   """
   return lambda x,t:  0.
 
-def DipolTDPot(omega: float = 2*np.pi, k: float = 2*np.pi, amplitude: float = 1., phase: float = 0.):
+
+def DipolTDPot(omega: float = 2*np.pi, k: float = 2*np.pi, amplitude: float = 1., phase: float = 0.) -> Callable[[float, float], float]:
   """
   Return the callable for a periodic time dependend dipol potential.
   $$
@@ -109,7 +116,7 @@ def DipolTDPot(omega: float = 2*np.pi, k: float = 2*np.pi, amplitude: float = 1.
   return lambda x, t:  np.sin(omega*t-k*x+phase) * amplitude
 
 
-def GrowingBarrierTDPot(tstart: float = 0., tstop: float = 1., vstep: float = 1., xstart: float = -1., xstop: float = +1.):
+def GrowingBarrierTDPot(tstart: float = 0., tstop: float = 1., vstep: float = 1., xstart: float = -1., xstop: float = +1.) -> Callable[[float, float], float]:
   """
   Return the callable for a growing time dependend barrier potential.
   In the interval `xmin < x < xmax` a barrier (or pod) is growing from depth 0 to `max_depth` in time interval `tmin < t < tmax`
