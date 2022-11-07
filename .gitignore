@@ -3,6 +3,7 @@
 *.png
 docs
 future
+media
 
 # GitHubs standard python ignores, taken from: https://github.com/github/gitignore
 __pycache__

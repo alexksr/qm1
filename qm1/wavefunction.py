@@ -210,6 +210,7 @@ class Wavefunction:
     from matplotlib import colors as mcolors
     figsize = (12, 7)
     fig, ax = plt.subplots(figsize=figsize)
+    fig, ax = plt.subplots()
     ax.set_xlabel('position')
     ax.set_xlim((self.grid.xmin, self.grid.xmax))
     ax.set_ylabel('wave function')
@@ -256,7 +257,6 @@ class WavefunctionTD:
     # set a writer
     writer = FFMpegWriter(fps=24)
     # plotting
-
     if pot:
       fig, (ax, ax2) = plt.subplots(2, 1, figsize=(10, 10))
     else:
@@ -282,6 +282,7 @@ class WavefunctionTD:
     # fig.colorbar(_wf_anim_cm_mappable, cax=cb_ax)
     cbar = mpl_absphase_colorbar(fig, ax, cax=cb_ax)
     if pot:
+      ax2.set_ylabel('potential')
       ax2.set_xlim((self.grid.xmin, self.grid.xmax))
       ax2.set_ylim((pot_min, pot_max))
       line_pot, = ax2.plot(self.grid.points, [pot(_x, tgrid[0]) for _x in self.grid.points])

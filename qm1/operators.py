@@ -98,10 +98,14 @@ class OperatorConst:
     - only shows the real part
     """
     import matplotlib.pyplot as plt
-    fig, ax = plt.subplots(figsize=(10,10))
+    fig, ax = plt.subplots()
     zmin = np.min(self.matrix()[1:-1, 1:-1])
     zmax = np.max(self.matrix()[1:-1, 1:-1])
-    c = ax.matshow(self.matrix(), cmap="viridis", vmin=zmin, vmax=zmax)
+    try:
+      c = ax.matshow(self.matrix(), cmap="viridis", vmin=zmin, vmax=zmax)
+    except:
+      print('only real operators can be visualized in this way')
+      return
     fig.colorbar(c, ax=ax)
     if file:
       plt.savefig(file)

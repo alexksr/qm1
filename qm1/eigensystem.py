@@ -31,7 +31,7 @@ class Eigensystem:
     for _i in range(self.num):
       coefficients[_i] = wavefunc.scalar_prod(self.eigstates[_i])
     p_coverage = np.sum(np.abs(coefficients)**2)
-    if p_coverage>1.: 
+    if p_coverage>1.+1e-5: 
       raise ValueError('Probabilities sum to {:.4f} (more than one). corrupt eigensystem or low spatial resolution?'.format(p_coverage))
     rest = 1.-np.sum(np.abs(coefficients)**2)
     return coefficients, rest
