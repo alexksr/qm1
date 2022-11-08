@@ -2,6 +2,10 @@
 
 A package for calculation and visualization of stationary or time-dependent basic one-dimensional (undergrade) problems. In the stationary scenario problems like potential steps or barriers, harmonic oscillators, etc. can be easily solved. In the time-dependent case tunneling can be calculated and visualized. Focus is on visualization and intuitive handling of the basic entities of qm: operators, wave functions, eigen systems, measurements... Speed is fine, but not prioritized.
 
+The below example shows the time evolution of a user-defined initial wave function (a linear combination of few low energy eigenstates) under the action of a time dependend potential.
+
+![tdmwe_wavefunc](https://user-images.githubusercontent.com/98354510/200693510-e6dd1e5f-555e-4e88-88f1-e22d37e62e00.gif)
+
 ## features 
 - classes for the main objects in quantum mechanics: wave functions and operators
 - Handles eigensystems, observables, time evolution
@@ -20,11 +24,14 @@ grid = UniformGrid(boundary_condition="vanishing", xmin=-20., xmax=20., num=250)
 potential = BarrierPot(xstart=-1., xstop=+2., vstep=-1.)
 qsys = QMSystem(grid, potential)
 op_hamilton = HamiltonOp(qsys)
-eigsys = Eigensystem(operator=op_hamilton, num=10)
+eigsys = Eigensystem(op_hamilton, num=10)
 eigsys.show('README_eigensystem.png')
 ```
-## remarks
-Hartree atomic units `hbar = m = e = 1/4pi epsilon_0` are used in the whole code.
+Resulting in the plot:
+
+![README_eigensystem](https://user-images.githubusercontent.com/98354510/200693955-50011bda-7fb3-427f-8e5b-b7a119d8e524.png)
+
+
 
 
 ## How-To
@@ -61,3 +68,5 @@ todo
 todo
 ### measurements
 todo
+## remarks
+Hartree atomic units `hbar = m = e = 1/4pi epsilon_0` are used in the whole code.
