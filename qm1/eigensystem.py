@@ -1,12 +1,21 @@
-from multiprocessing.sharedctypes import Value
 import numpy as np
 import matplotlib.pyplot as plt
 from qm1.operators import OperatorConst
-from qm1.qmsystem import QMSystem
 from qm1.wavefunction import Wavefunction
+from typing import List
 
 class Eigensystem:
+  """Handles calculation and storage of the eigen system of an operator."""
   def __init__(self, operator: OperatorConst, num:int=10):
+    """
+    Calculates and stores the eigensystem (with `num` eigen states) of `operator`.
+    Parameters
+    ----------
+    operator : OperatorConst
+      (Hermitian) operator to calc eigensystem for.
+    num : int
+      Number of eigen states (and values) to compute.
+  """
     self.num = num
     self.op = operator
     self.grid = operator.grid
@@ -26,7 +35,21 @@ class Eigensystem:
       self.eigstates[_i] = self.eigstates[_i].normalized()
 
   def decompose(self, wavefunc: Wavefunction):
-    """ decompose a wavefunction into a spectral basis with coefficients and rest term"""
+    """ 
+    Decompose a wave function into the basis of the eigen system. 
+    Return expansion coefficients and rest term.
+
+    Parameters
+    ----------
+    wavefunc: Wavefunction
+      wave function to decompose 
+    Returns
+    -------
+    coefficients:
+      List of floats or complex coeficients (with length given by ``self.num``)
+    rest: float
+      Missing ``probability`` to fullfill normalization.
+    """
     coefficients = np.zeros((self.num))
     for _i in range(self.num):
       coefficients[_i] = wavefunc.scalar_prod(self.eigstates[_i])
@@ -37,11 +60,22 @@ class Eigensystem:
     return coefficients, rest
 
   def show(self, file:str=None, op_pot:OperatorConst=None):
+    """
+    Plot the eigensystem.
+    Returns a plot of the eigen vector and corresponding eigen values.
+
+    Parameters
+    ----------
+    file: str
+      File to save the figure to. When present the figure is saved to file, otherwise (if 'None') the figure will be displayed immediately.
+    op_pot: OperatorConst
+      When present plot the potential operator (or any local operator) next to the eigensystem.
+    """
     if not op_pot is None:
-      fig, (ax0, ax1)=plt.subplots(2, 1, figsize = (15, 5), gridspec_kw = {'height_ratios': [4, 2]}, sharex=True)
+      fig, (ax0, ax1)=plt.subplots(2, 1, gridspec_kw = {'height_ratios': [4, 2]}, sharex=True)
       fig.subplots_adjust(hspace = .0)
     else:
-      fig, ax0 = plt.subplots(figsize=(15, 7))
+      fig, ax0 = plt.subplots()
     colors = [plt.cm.tab10(i) for i in range(self.num)]
     alphas = [((self.num-0.5*i ) / self.num)**2. for i in range(self.num)]
     ax0.set_title('eigen system')
@@ -67,11 +101,23 @@ class Eigensystem:
       plt.show()
 
 
-  def get_observables(self, ops: list):
+  def get_observables(self, ops: List[OperatorConst]) -> np.ndarray:
     """ 
-    Return the expectation value and variance for each operator in the list of operators `ops` for each eigenstate in the eigensystem
+    Return the expectation value and variance for each operator in the list of operators `ops` for each eigenstate in the eigensystem.
+    Plot the eigensystem.
+    Returns a plot of the eigen vector and corresponding eigen values.
+
+    Parameters
+    ----------
+    ops: List[OperatorConst]
+      List of operators to eval across the eigensystem.
+    Returns
+    -------
+    observations : np.ndarray
+      Array of obervations ordered like obervations[eigenstate][operator][exp/var]
     """
-    obs = []
+    observations = []
     for _eigstate in self.eigstates:
-      obs.append(_eigstate.get_observables(ops))
-    return  np.array(obs)
+      observations.append(_eigstate.get_observables(ops))
+    observations =np.array(observations)
+    return observations

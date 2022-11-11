@@ -36,7 +36,7 @@ class QMSystem:
 
 
 def ConstPot(const: float = 0.) -> Callable[[float], float]:
-  """ Returns a vanishing (or constant) potential, solutions will be plain wave-like. """
+  """ Returns a vanishing (or constant) potential, solutions will be plain wave- or box-like. """
   return lambda x: const
 
 

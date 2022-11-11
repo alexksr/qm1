@@ -5,6 +5,13 @@ import numpy as np
 _timit_num_runs = 10
 
 
+def nmetric(a: float, b: float, eps: float = 1E-10) -> float:
+  """Return a numerically safe relative metric."""
+  return 0.5 * np.linalg.norm(a-b) / (np.linalg.norm(a) + np.linalg.norm(b) + eps)
+
+
+
+
 def timeit_multiple(some_function):
   """ Timer for any function with printing and statistics.
   Repeats the timing and returns simple statistics on the delay.

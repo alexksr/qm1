@@ -42,22 +42,52 @@ class Grid:
 
 
 class UniformGrid(Grid):
-  """
-  Implementation with uniform grid spacing.
-  """
+  """ Implementation of a grid with uniform grid spacing. """
   def __init__(self,  boundary_condition: str, xmin: float, xmax: float, num: int) -> None:
+    """ 
+    Set up an uniform grid. 
+    
+    Parameters
+    ----------
+    boundary_condition: str
+      Boundary condition to impose. Choose from 'vanishing' (wave functions are identically zero at the boundary), 'periodic' (functions (and derivatives) are periodic at the boundary), 'open' (no conditions imposed).
+    xmin: float
+      Smallest coordinate.
+    xmax: float
+      Greatest coordinate.
+    num: int
+      Number of grid points. 
+    """
     super().__init__(boundary_condition, xmin,xmax, num)
     self.dx = (xmax-xmin)/num
     self.x  = lambda i: (i+0.5)*self.dx + self.xmin
     self.points = np.array([self.x(_i) for _i in range(self.num)])
 
   def integrate(self, func):
+    """
+    Integrate ``func`` on the grid by the simplest sum rule.
+
+    Parameters
+    ----------
+    func : np.ndarray
+      Function/vector to integrate.
+    Returns
+    -------
+    Returns the integral of function ``func`` over the interval of the grid in linear accuracy.
+    """
     return np.sum(func)*self.dx
 
   def first_deriv(self):
     """ 
-    operator of the first finite-difference derivative
-    finite differences like (-1,0,+1)/2/dx
+    Return the operator of the first derivative in linear order using finite differences $(-1,0,+1)/2/dx$.
+    
+    Returns
+    -------
+    Returns the matrix representation of the first derivative.
+
+    Notes
+    -----
+    The derivative matrix respects the chosen kind of boundary conditions.
     """
     result = sparse.lil_matrix((self.num, self.num))
     const = .5/self.dx
@@ -77,9 +107,16 @@ class UniformGrid(Grid):
     return result
 
   def second_deriv(self):
-    """
-    operator of the second finite-difference derivative 
-    finite differences like (-1,2,-1)/dx**2
+    """ 
+    Return the operator of the second derivative in linear order using finite differences $(-1,2,-1)/dx**2$.
+    
+    Returns
+    -------
+    Returns the matrix representation of the second derivative.
+
+    Notes
+    -----
+    The derivative matrix respects the chosen kind of boundary conditions.
     """
     result = sparse.lil_matrix((self.num, self.num))
     const = 1./self.dx**2

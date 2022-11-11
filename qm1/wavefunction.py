@@ -209,7 +209,7 @@ class Wavefunction:
     from matplotlib import cm
     from matplotlib import colors as mcolors
     figsize = (12, 7)
-    fig, ax = plt.subplots(figsize=figsize)
+    # fig, ax = plt.subplots(figsize=figsize)
     fig, ax = plt.subplots()
     ax.set_xlabel('position')
     ax.set_xlim((self.grid.xmin, self.grid.xmax))
@@ -255,12 +255,12 @@ class WavefunctionTD:
     # disable immediate plotting in interactive mode
     plt.ioff()
     # set a writer
-    writer = FFMpegWriter(fps=24)
+    writer = FFMpegWriter(fps=20)
     # plotting
     if pot:
-      fig, (ax, ax2) = plt.subplots(2, 1, figsize=(10, 10))
+      fig, (ax, ax2) = plt.subplots(2, 1)
     else:
-      fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+      fig, ax = plt.subplots(1, 1)
     fig.subplots_adjust(bottom=0.1, top=0.9, left=0.1, right=0.8,wspace=0.05, hspace=0.05)
     wf_min = 0. # min([np.min(np.abs(_psi.func)**2) for _psi in self.wflist])
     wf_max = 1.1 * max([np.max(np.abs(_psi.func)) for _psi in self.wflist])
@@ -307,144 +307,3 @@ class WavefunctionTD:
     # enable plotting again in interactive mode
     plt.ion()
     return ani
-
-  def show2(self, tgrid: Iterable, file: str = None, pot: Callable[[float, float], float] = None) -> Union[None, FuncAnimation]:
-    """Plot the evolution of the wave function
-     - optionally plot an additional corresponding time dependend potential
-     - the animation is stored under `file` if present
-     - the animation object is returned
-    """
-    import matplotlib.pyplot as plt
-    # disable immediate plotting in interactive mode
-    plt.ioff()
-    # set a writer
-    writer = FFMpegWriter(fps=24)
-    # plotting
-    _xgrid = self.grid.points
-    if pot:
-      fig, (ax, ax2) = plt.subplots(2, 1, figsize=(10, 10))
-    else:
-      fig, ax = plt.subplots(1, 1, figsize=(10, 10))
-    y1min = min([np.min(np.abs(_psi.func)**2) for _psi in self.wflist])
-    y1max = max([np.max(np.abs(_psi.func)**2) for _psi in self.wflist])
-    y1min, y1max = y1min-0.01*(y1max-y1min), y1max+0.01*(y1max-y1min)
-    if pot:
-      y2min = min([pot(_x, _t) for _x in _xgrid for _t in tgrid])
-      y2max = max([pot(_x, _t) for _x in _xgrid for _t in tgrid])
-      y2min, y2max = y2min-0.01*(y2max-y2min), y2max+0.01*(y2max-y2min)
-
-    ax.set_title('evolution of wavefunction')
-    ax.set_xlabel('position')
-    ax.set_ylabel('density of the wave function')
-    ax.set_ylim((y1min, y1max))
-    ax.set_xlim(min(_xgrid), max(_xgrid))
-    line, = ax.plot([], [])
-    if pot:
-      ax2.set_xlim(min(_xgrid), max(_xgrid))
-      ax2.set_ylim((y2min, y2max))
-      line2, = ax2.plot([], [])
-    text = ax.text(0.8, 0.9, '', horizontalalignment='left', verticalalignment='center', transform=ax.transAxes)
-
-    def animate(i):
-      _t = float(tgrid[i])
-      text.set_text('time='+'{:.2f}'.format(_t))
-      if i < 1:
-        line.set_xdata(_xgrid)
-      line.set_ydata(np.abs(self.wflist[i].func)**2)
-      if pot:
-        if i < 1:
-          line2.set_xdata(_xgrid)
-        line2.set_ydata(np.array([pot(_t, _x) for _x in _xgrid]))
-        line2.set_ydata([pot(_x, _t) for _x in _xgrid])
-        return line, line2, text,
-      else:
-        return line, text,
-
-    ani = FuncAnimation(fig=fig, func=animate, frames=range(len(self.wflist)), interval=1000./24.)
-    if file:
-      ani.save(file, writer=writer)
-    # close the figure
-    plt.close()
-    # enable plotting again in interactive mode
-    plt.ion()
-    return ani
-
-
-##########################################################################################################from matplotlib.animation import FuncAnimation, FFMpegWriter
-
-  # def show(self, tgrid: Iterable, file: str = None, pot: Callable[[float, float], float] = None, absphase: bool = False) -> Union[None, FuncAnimation]:
-  #   """Plot the evolution of the wave function
-  #    - optionally plot an additional corresponding time dependend potential
-  #    - the animation is stored under `file` if present
-  #    - the animation object is returned
-  #   """
-  #   import matplotlib.pyplot as plt
-  #   from matplotlib import colors as mcolors
-
-  #   # disable immediate plotting in interactive mode
-  #   plt.ioff()
-  #   # set a writer
-  #   writer = FFMpegWriter(fps=24)
-  #   # plotting
-  #   if pot:
-  #     fig, (ax, ax2) = plt.subplots(2, 1, figsize=(10, 10))
-  #   else:
-  #     fig, ax = plt.subplots(1, 1, figsize=(10, 10))
-
-  #   y1min = min([np.min(np.abs(_psi.func)**2) for _psi in self.wflist])
-  #   y1max = max([np.max(np.abs(_psi.func)**2) for _psi in self.wflist])
-  #   y1min, y1max = y1min-0.01*(y1max-y1min), y1max+0.01*(y1max-y1min)
-
-  #   if pot:
-  #     y2min = min([pot(_x, _t) for _x in self.grid.points for _t in tgrid])
-  #     y2max = max([pot(_x, _t) for _x in self.grid.points for _t in tgrid])
-  #     y2min, y2max = y2min-0.01*(y2max-y2min), y2max+0.01*(y2max-y2min)
-
-  #   ax.set_title('evolution of wavefunction')
-  #   ax.set_xlabel('position')
-  #   ax.set_ylabel('density of the wave function')
-  #   ax.set_ylim((y1min, y1max))
-  #   ax.set_xlim(self.grid.xmin, self.grid.xmax)
-  #   line_wf, = ax.plot([], [])
-  #   bar_wf,  = ax.bar(self.grid.points, np.abs(self.wflist[0].func)**2, color=_wf_anim_cmap(np.angle(self.wflist[0].func)), width=self.grid.dx)
-  #   plot_wf,  = ax.plot(self.grid.points, np.abs(self.wflist[0].func)**2, c='black', lw=3)
-
-  #   if pot:
-  #     ax2.set_xlim(self.grid.xmin, self.grid.xmax)
-  #     ax2.set_ylim((y2min, y2max))
-  #     line_pot, = ax2.plot([], [])
-  #   text = ax.text(0.8, 0.9, '', horizontalalignment='left', verticalalignment='center', transform=ax.transAxes)
-
-  #   def animate(i):
-
-  #     _t = float(tgrid[i])
-  #     text.set_text('time='+'{:.2f}'.format(_t))
-  #     if i < 1:
-  #       line_wf.set_xdata(self.grid.points)
-
-  #     cphase = np.angle(self.wflist[i].func)
-  #     colors = _wf_anim_cmap(cphase)
-  #     mappable = cm.ScalarMappable(norm=_wf_anim_cm_norm, cmap=_wf_anim_cmap)
-  #     cbar = fig.colorbar(mappable=mappable, ax=ax, ticks=_wf_anim_cm_phase_ticks)  # , orientation='vertical')
-  #     cbar.set_ticklabels(_wf_anim_cm_phase_labels)
-
-  #     bar_wf.set_ydata(np.abs(self.wflist[i].func)**2)
-  #     line_wf.set_facecolor(colors)
-
-  #     if pot:
-  #       if i < 1:
-  #         line_pot.set_xdata(self.grid.points)
-  #       line_pot.set_ydata(np.array([pot(_t, _x) for _x in self.grid.points]))
-  #       line_pot.set_ydata([pot(_x, _t) for _x in self.grid.points])
-  #       return line_wf, line_pot, text,
-  #     else:
-  #       return line_wf, text,
-
-  #   ani = FuncAnimation(fig=fig, func=animate, frames=range(len(self.wflist)), interval=1000./24.)
-  #   if file:
-  #     ani.save(file, writer=writer)
-  #   # close the figure
-  #   plt.close()
-  #   # enable plotting again in interactive mode
-  #   plt.ion()
-  #   return ani

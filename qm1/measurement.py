@@ -6,10 +6,24 @@ from qm1.wavefunction import Wavefunction
 from qm1.eigensystem import Eigensystem
 
 class Measure:
+  """Realizes quantum measurements of a given operator."""
   def __init__(self, op: OperatorConst, num_states:int=10):
+    """
+    Set an operator and the number of states to include in its eigensystem (via which the measurement is calculated).
+        
+    Parameters
+    ----------
+    op: OperatorConst
+      (Hermitian) operator of the measures observable.
+    num_states : int
+      Number of eigenstates to include in the simulation of the measurement.
+
+    Notes
+    -----
+    This already calculates the eigensystem of the operator.
+    """
     self.op = op
     self.num_states = num_states
-    # get the eigensystem
     self.eigsys = Eigensystem(operator=op, num=self.num_states)
 
   def __call__(self, wf: Wavefunction, num_obs: int = 1000) -> np.ndarray:
@@ -46,10 +60,13 @@ class Measure:
 
   def show(self, file:str=None):
     """
-    Visualize the measurement:
-     - plot time series of measurement outcomes
-     - plot histogram with expectation value and standard deviation
-     - when `file` is present, `savefig` to file
+    Plot the measurement.
+    Plots time series of measurement outcomes and a histogram with expectation value and standard deviation.
+
+    Parameters
+    ----------
+    file:str
+      When present, the figure is saved to `file`, otherwise the figure will be shown immediately.
     """
     fig, (ax0, ax1) = plt.subplots(2, 1, figsize=(10,10))
     ax0.set_title('measurement outcome')
