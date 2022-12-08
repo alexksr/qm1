@@ -63,7 +63,15 @@ obs = wf.get_observables([op_identity, op_position, op_momentum, op_hamilton])
 ```
 Time dependent wave functions `WavefunctionTD` are a list of `Wavefunction` objects.
 ### operators
-Operators act as matrices on the wave functions. Sparse matrix representations are used to store the elements for fast calculations. Two kinds of operators are discriminated: `OperatorConst` and `OperatorTD`.
+Operators act as matrices on the wave functions. Sparse matrix representations are used to store the elements for fast calculations. 
+
+Operators act on wave functions via their `__call__` method
+
+```python
+op_acting_on_wf = op(wf)
+```
+
+Two kinds of operators are discriminated: `OperatorConst` and `OperatorTD`.
 #### Time-constant operators
 Time-constant Operators get instanciated with dependency on a given `grid`.
 ```python
@@ -108,8 +116,9 @@ Any time-dependent operator consists of a single time-constant operator $O_0$ an
 $$
 f_k(x, t) O_k 
 $$
-where $f_k(x, t)$ is a function of time and space and $O_k$ is a `OperatorConst` operator. Addition, substraction and negation are implemented as class operations, but not multiplication (sequential application, concatenation). This class should be handled with some slight care, since for example the repeated addition of a simple operator is not automatically understood as multiplication with an integer scalar, thus consumes memory and increases runtime.
+where $f_k(x, t)$ is a function of time and space and $O_k$ is a `OperatorConst` operator. Addition, substraction and negation are implemented as class operations, but multiplication (sequential application, concatenation) is only allowed with scalars. This class should be handled with some slight care, since for example the repeated addition of a simple operator is not automatically understood as multiplication with an integer scalar, thus consumes memory and increases runtime. 
 
+The main use case for time-dependent operators are td systems (with td potentials and thus td Hamiltonians). 
 
 ### eigen system
 The (fraction of the) eigensystem of an operator can be found easily with the `Eigensystem` class:
