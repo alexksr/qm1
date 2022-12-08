@@ -18,7 +18,7 @@ class OperatorConst:
    - differentiation supported
    - uses sparse matrix representation (`csr` format from `scipy.sparse`)
   """
-  def __init__(self, grid:Grid):
+  def __init__(self, grid:Grid, hermitian:bool=True):
     self.grid = grid
     self.sparse_mat = sparse.lil_matrix((self.grid.num, self.grid.num))
 
@@ -158,7 +158,7 @@ class OperatorConst:
     self.sparse_mat = self.sparse_mat.tocsr()
 
   
-  def eigen_system(self, k:int, init_wf:Wavefunction=None, initialguess_eigval_0=None):
+  def eigen_system(self, k:int, init_wf:Wavefunction=None, initialguess_eigval_0=None, hermitian:bool=True):
     """
     return the lowest `k` eigenvalues and eigen vectors from the eigensystem of the operator (in space representation)
      - `lowest`  means smallest real part (`which='SR'`)
@@ -179,13 +179,22 @@ class OperatorConst:
     # get eigensystem
     eigval, eigvec = sparse.linalg.eigs(self.sparse_mat, k, sigma=init_val, v0=init_vec, which='SR', tol=1e-10)
 
+    print('self.sparse_mat', self.matrix())
+
     # remove imaginary parts, since eigen-states and -values of hermitian opertators are real
-    eigval = np.real(eigval)
-    eigvec = np.real(eigvec).T
+    if hermitian:
+      eigval = np.real(eigval)
+      eigvec = np.real(eigvec)
+    eigvec = eigvec.T
 
     # sort 
-    eigvec = np.array([vec for _, vec in sorted(zip(eigval, eigvec), key=lambda pair: pair[0])])
-    eigval = sorted(eigval)
+    if hermitian:
+      eigvec = np.array([vec for _, vec in sorted(zip(eigval, eigvec), key=lambda pair: pair[0])])
+      eigval = sorted(eigval)
+    else:
+      eigvec = np.array([vec for _, vec in sorted(zip(eigval, eigvec), key=lambda pair: np.abs(pair[0]))])
+      eigval = sorted(eigval)
+
 
     # put the np.ndarray data back to wavefunction class
     eigstate = []

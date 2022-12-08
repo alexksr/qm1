@@ -189,11 +189,13 @@ class Wavefunction:
     # callable for the ivp solver
     def ipvfunc(t, vec): return op_rhs.sparse_mat(t) * vec
 
-    # solve 
-    data = integrate.solve_ivp(fun=ipvfunc, t_span=[tgrid[0], tgrid[-1]], y0=self.func, t_eval=tgrid, method="RK45")
-  
+    # complex data type needed for y0 to solve complex ivps
+    y0 = self.func + 0.j
 
-    # make the raw output data to class wavefuctions again
+    # solve
+    data = integrate.solve_ivp(fun=ipvfunc, t_span=[tgrid[0], tgrid[-1]], y0=y0, t_eval=tgrid, method="RK45")
+
+    # convert the raw output data to class wave functions again
     tdwf = WavefunctionTD(self.grid)
     for _i in range(tgrid.size):
       _psi = Wavefunction(self.grid)
@@ -259,6 +261,7 @@ class WavefunctionTD:
     # plotting
     if pot:
       fig, (ax, ax2) = plt.subplots(2, 1)
+      complex_pot = True
     else:
       fig, ax = plt.subplots(1, 1)
     fig.subplots_adjust(bottom=0.1, top=0.9, left=0.1, right=0.8,wspace=0.05, hspace=0.05)
@@ -266,9 +269,13 @@ class WavefunctionTD:
     wf_max = 1.1 * max([np.max(np.abs(_psi.func)) for _psi in self.wflist])
     # wf_min, wf_max = wf_min-0.01*(wf_max-wf_min), wf_max+0.01*(wf_max-wf_min)
     if pot:
-      pot_min = min([pot(_x,_t) for _x in self.grid.points for _t in tgrid])
-      pot_max = max([pot(_x,_t) for _x in self.grid.points for _t in tgrid])
-      pot_min, pot_max = pot_min-0.01*(pot_max-pot_min), pot_max+0.01*(pot_max-pot_min)
+      pot_min_re = min([np.real(pot(_x, _t)) for _x in self.grid.points for _t in tgrid])
+      pot_max_re = max([np.real(pot(_x, _t)) for _x in self.grid.points for _t in tgrid])
+      pot_min_re, pot_max_re = pot_min_re-0.01*(pot_max_re-pot_min_re), pot_max_re+0.01*(pot_max_re-pot_min_re)
+      if complex_pot:
+        pot_min_im = min([np.imag(pot(_x, _t)) for _x in self.grid.points for _t in tgrid])
+        pot_max_im = max([np.imag(pot(_x, _t)) for _x in self.grid.points for _t in tgrid])
+        pot_min_im, pot_max_im = pot_min_im-0.01*(pot_max_im-pot_min_im), pot_max_im+0.01*(pot_max_im-pot_min_im)
 
     ax.set_title('evolution of wavefunction')
     ax.set_xlabel('position')
@@ -282,11 +289,20 @@ class WavefunctionTD:
     # fig.colorbar(_wf_anim_cm_mappable, cax=cb_ax)
     cbar = mpl_absphase_colorbar(fig, ax, cax=cb_ax)
     if pot:
-      ax2.set_ylabel('potential')
       ax2.set_xlim((self.grid.xmin, self.grid.xmax))
-      ax2.set_ylim((pot_min, pot_max))
-      line_pot, = ax2.plot(self.grid.points, [pot(_x, tgrid[0]) for _x in self.grid.points])
-      line_pot.set_xdata(self.grid.points)
+      ax2.set_ylim((pot_min_re, pot_max_re))
+      if complex_pot:
+        ax2.set_ylabel('potential - real part')
+        ax22 = ax2.twinx()
+        ax22.set_ylabel('potential - imag part')
+        ax22.set_ylim((pot_min_im, pot_max_im))
+        line_pot_im, = ax22.plot(self.grid.points, [np.imag(pot(_x, tgrid[0])) for _x in self.grid.points])
+      else: 
+        ax2.set_ylabel('potential')
+
+      line_pot_re, = ax2.plot(self.grid.points, [np.real(pot(_x, tgrid[0])) for _x in self.grid.points])
+      line_pot_re.set_xdata(self.grid.points)
+      line_pot_im.set_xdata(self.grid.points)
     text = ax.text(0.8, 0.9, '', horizontalalignment='left', verticalalignment='center', transform=ax.transAxes)
 
     def animate(i):
@@ -294,9 +310,13 @@ class WavefunctionTD:
       text.set_text('time='+'{:.2f}'.format(_t))
       mpl_absphase_plot_update(fig, ax, self.grid, self.wflist[i].func, bar, line_wf)
       if pot:
-        line_pot.set_ydata(np.array([pot(_t, _x) for _x in self.grid.points]))
-        line_pot.set_ydata([pot(_x,_t) for _x in self.grid.points])
-        return line_wf, line_pot, text,
+        line_pot_re.set_ydata(np.array([np.real(pot(_t, _x)) for _x in self.grid.points]))
+        line_pot_re.set_ydata([np.real(pot(_x,_t)) for _x in self.grid.points])
+        if complex_pot:
+          line_pot_im.set_ydata(np.array([np.imag(pot(_t, _x)) for _x in self.grid.points]))
+          line_pot_im.set_ydata([np.imag(pot(_x, _t)) for _x in self.grid.points])
+          return line_wf, line_pot_re, line_pot_im, text,
+        return line_wf, line_pot_re, text,
       else:
         return line_wf, text,
 

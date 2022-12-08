@@ -24,7 +24,7 @@ class Eigensystem:
     init_wf = Wavefunction(self.grid)
     length = self.grid.xmax-self.grid.xmin
     mu, sigma = self.grid.xmin + 0.5*length, 0.1
-    def func(x): return np.sin((x-mu)/length*np.pi) * np.exp(-0.5*((x-mu)/length/sigma)**2)
+    def func(x): return np.cos((x-mu)/length*np.pi) * np.exp(-0.5*((x-mu)/length/sigma)**2)
     init_wf.from_func(func)
 
     # solve the evp
