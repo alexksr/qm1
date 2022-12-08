@@ -37,7 +37,7 @@ Resulting in the plot:
 ## How-To
 The classes to describe the quantum mechanical entities are kept simple. Useability and readability of the code are given higher priority than speed. Here are some examples of the API.
 ### wave functions
-Wave functions are represented as a vector (`np.ndarray`) of function values on the given point-grid and take complex values in general. In explicitly real and stationary systems, wave functions are also real. Operators act as matrices on the wave functions. New instances of wave functions can be generated and set with 
+Wave functions are represented as a vector (`np.ndarray`) of function values on the given point-grid and take complex values in general. In explicitly real and stationary systems wave functions can also be real. New instances of wave functions can be generated and set with 
 ```python 
 wf = Wavefunction(grid)
 func = lambda x: np.exp(-x**2)
@@ -61,12 +61,75 @@ or even for a bunch of operators, e.g.
 ```python
 obs = wf.get_observables([op_identity, op_position, op_momentum, op_hamilton])
 ```
-
+Time dependent wave functions `WavefunctionTD` are a list of `Wavefunction` objects.
 ### operators
-todo
+Operators act as matrices on the wave functions. Sparse matrix representations are used to store the elements for fast calculations. Two kinds of operators are discriminated: `OperatorConst` and `OperatorTD`.
+#### Time-constant operators
+Time-constant Operators get instanciated with dependency on a given `grid`.
+```python
+ op = OperatorConst(grid)
+```
+To set the matrix elements you can either set the diagonal of a local operator (with a callable `func`)
+```python
+ op.local(func(grid.points))
+```
+set derivatives
+```python
+  op.first_deriv()
+  op.second_deriv()
+```
+or use the build-in arithmetic operators (`+-*`) to make more complex operators from basic ones.
+```python
+  op = _op * (-0.5/qsys.mass)
+```
+Setting the matrix elements all by yourself is also perfectly fine. Here `mat` is a size-compatible matrix with arbitrary elements.
+```python
+  op.from_matrix(mat)
+```
+To fasten coding there are predefined operators that can be instanciated with reference to the `QMSystem`
+```python
+op_identity = IdentityOp(qsys.grid)
+op_position = PositionOp(qsys.grid)
+op_momentum = MomentumOp(qsys.grid)
+op_hamilton = HamiltonOp(qsys) # takes the potential directly from `qsys`
+# as well as: ZeroOp(grid:Grid), GradientOp(grid:Grid), LaplaceOp(grid:Grid), StatPotentialOp(qsys:QMSystem), KineticOp(qsys:QMSystem), ...
+```
+When the operators have been defined via any of the above methods, the operator can be cast in sparse representation with 
+```python
+op.finalize()
+```
+Now the representation is more efficient in memory and runtime.
+#### Time-dependent operators
+The representation of time-dependent operators is implemented as follows:
+$$
+O_t = O_0 + \sum_{k=1}^N f_k(x, t) O_k 
+$$ 
+Any time-dependent operator consists of a single time-constant operator $O_0$ and a series of products
+$$
+f_k(x, t) O_k 
+$$
+where $f_k(x, t)$ is a function of time and space and $O_k$ is a `OperatorConst` operator. Addition, substraction and negation are implemented as class operations, but not multiplication (sequential application, concatenation). This class should be handled with some slight care, since for example the repeated addition of a simple operator is not automatically understood as multiplication with an integer scalar, thus consumes memory and increases runtime.
+
+
 ### eigen system
-todo
+The (fraction of the) eigensystem of an operator can be found easily with the `Eigensystem` class:
+```python
+es = Eigensystem(op, num=5):
+```
+`Eigensystem` has plotting and evaluation routines implemented.
 ### measurements
-todo
+To link the mathematical framework of quantum mechanics with the experiment the `Measure` class simulates measurements on wavefunctions. To perform a measurement on a wave function first instantiate the measurement with reference to the observable/operator you want to measure and specify the number of eigen states up to which the observable can be resolved. For example: When measuring the energy using the Hamiltonian operator with `num_states=100`, the measurement routines will decompose the wave function to be measured into the first 100 (energy-) eigen states and draw eigen energies with the probabilities of those states. 
+```python
+m = Measure(op, num_states=100):
+```
+Next, specify the wave function `prepared_wf` to be measured. Then the repeated measurement of `num_obs=1000` single measurements happens in 
+```python
+m(prepared_wf, num_obs=1000)
+```
+To plot the timeline and hiostogram of the measurement, use
+```python
+m.show(file='measure.png')
+```
+Note: When the prepared wave function does not lie in the span of the eigen system of `m` (or the fraction of it, `num_states=100`) the measurement will be recorded as out-of-bounds. 
 ## remarks
 Hartree atomic units `hbar = m = e = 1/4pi epsilon_0` are used in the whole code.
