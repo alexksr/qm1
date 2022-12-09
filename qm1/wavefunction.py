@@ -13,29 +13,18 @@ _wf_anim_cm_phase_labels = [r'$-\pi$', r'$-\frac{\pi}{2}$', '0', r'$\frac{\pi}{2
 _wf_anim_cm_norm = mcolors.Normalize(vmin=-np.pi, vmax=np.pi)
 _wf_anim_cmap = cm.hsv
 _wf_anim_cm_mappable = cm.ScalarMappable(norm=_wf_anim_cm_norm, cmap=_wf_anim_cmap)
-
-
-def mpl_absphase_colorbar(fig, ax, cax):
-  cbar = fig.colorbar(mappable=_wf_anim_cm_mappable, ax=ax, cax=cax, ticks=_wf_anim_cm_phase_ticks, fraction=0.046, pad=0.04)
-  cbar.set_ticklabels(_wf_anim_cm_phase_labels)
-  return cbar
+_wf_figsize = (6.4, 4.8)
 
 def mpl_absphase_plot(fig, ax, grid: Grid, func: np.ndarray):
   colors = _wf_anim_cmap(np.angle(func)/2./np.pi + 0.5)
   bar = ax.bar(grid.points, np.abs(func), color=colors, width=grid.dx)
   line,  = ax.plot(grid.points, np.abs(func), c='black', lw=3)
-  # cbar = fig.colorbar(mappable=_wf_anim_cm_mappable, ax=ax, ticks=_wf_anim_cm_phase_ticks, fraction=0.046, pad=0.04)
-  # cbar.set_ticklabels(_wf_anim_cm_phase_labels)
+  return  bar, line
 
-  return  bar, line#, cbar
-
-
-# Line2D(xdata, ydata, *, linewidth=None, linestyle=None, color=None, gapcolor=None, marker=None, markersize=None, markeredgewidth=None, markeredgecolor=None, markerfacecolor=None, markerfacecoloralt='none', fillstyle=None, antialiased=None, dash_capstyle=None, solid_capstyle=None, dash_joinstyle=None, solid_joinstyle=None, pickradius=5, drawstyle=None, markevery=None, **kwargs)
-# np.abs(func)**2
-# bar < class 'matplotlib.container.BarContainer' >
-# line < class 'list' >
-# cbar < class 'matplotlib.colorbar.Colorbar' >
-
+def mpl_absphase_colorbar(fig, ax, cax):
+  cbar = fig.colorbar(mappable=_wf_anim_cm_mappable, ax=ax, cax=cax, ticks=_wf_anim_cm_phase_ticks, fraction=0.046, pad=0.04)
+  cbar.set_ticklabels(_wf_anim_cm_phase_labels)
+  return cbar
 
 def mpl_absphase_plot_update(fig, ax, grid: Grid, func: np.ndarray, bar, line: Line2D):
   colors = _wf_anim_cmap(np.angle(func)/2./np.pi + 0.5)
@@ -49,31 +38,6 @@ def mpl_absphase_plot_update(fig, ax, grid: Grid, func: np.ndarray, bar, line: L
     rect.set(color=_color)
   fig.canvas.draw()
 
-  #   for 
-    
-    
-  
-
-
-  # def animated_barplot():
-  #   # http://www.scipy.org/Cookbook/Matplotlib/Animations
-  #   mu, sigma = 100, 15
-  #   N = 4
-  #   x = mu + sigma*np.random.randn(N)
-  #   rects = plt.bar(range(N), x,  align='center')
-  #   for i in range(50):
-  #       x = mu + sigma*np.random.randn(N)
-  #       for rect, h in zip(rects, x):
-  #           rect.set_height(h)
-
-
-  # fig = plt.figure()
-  # win = fig.canvas.manager.window
-  # win.after(100, animated_barplot)
-  # plt.show()
-
-
-
 class Wavefunction:
   """ 
   Generic class for a wave function on a 1-dimenional grid.
@@ -82,54 +46,59 @@ class Wavefunction:
    - statistical operations supported
   """
   def __init__(self, grid: Grid):
+    """
+    Initializes the wave function class from a given grid.
+    Parameters
+    ----------
+    grid: Grid
+      Determines grid positions.
+    """
     self.grid  = grid
     self.func = np.zeros([self.grid.num])
 
   def __mul__(self, other:Union[float, int, complex]) -> 'Wavefunction':
-    """ multiply a Wavefunction by a constant """
+    """ Return the product of a wave function with a scalar. """
     result = Wavefunction(self.grid)
     result.func = other * self.func
     return result
-  
   def __rmul__(self, other: Union[float, int, complex]) -> 'Wavefunction':
-    """ multiply a Wavefunction by a constant """
+    """ Return the product of a wave function with a scalar. """
     result = Wavefunction(self.grid)
     result.func = self.func * other
     return result
-
   def __add__(self, other: 'Wavefunction') -> 'Wavefunction':
-    """ add two Wavefunctions """
+    """ Return the sum of two wave functions. """
     result = Wavefunction(self.grid)
     result.func = other.func + self.func
     return result
   def __sub__(self, other: 'Wavefunction') -> 'Wavefunction':
-    """ add two Wavefunctions """
+    """ Return the difference of two wave functions. """
     result = Wavefunction(self.grid)
     result.func = self.func - other.func
     return result
 
   def norm(self):
-    """ norm of the wavefunction """
+    """ Return the norm of the wave function. """
     return np.sqrt(self.scalar_prod(self))
     
   def normalized(self):
-    """ normalize the wavefunction to one """
+    """ Return a normalized wave function. """
     result = self
     result.func = self.func / self.norm()
     return result
 
   def conjugated(self):
-    """ conjugate the wavefunction (complex conjugation)  """
+    """ Return a complex conjugated wavefunction. """
     result = self
     result.func = np.conjugate(self.func)
     return result
 
   def scalar_prod(self, other:"Wavefunction")->complex:
-    """ calc `<self|other>` """
+    """ Return the scalar product of the two wave functions `<self|other>`. """
     return self.grid.integrate(np.conjugate(self.func)*other.func)
 
   def from_array(self, func: np.ndarray, normalize:bool=True):
-    """ set the wavefunction to the given array of values `func` """
+    """ Set the  wave function values to the given vector values of `func` (and normalize by default). """
     self.func = func
     if self.grid.bc == 'vanishing':
       self.func[0] = 0.
@@ -139,10 +108,7 @@ class Wavefunction:
     return None
 
   def from_func(self, func:Callable[[float], Union[float,complex]] , normalize: bool = True):
-    """ 
-    Set the wavefunction by evaluating the given function on the grid.
-    Automatically do a normalization.
-    """
+    """Set the  wave function values by evaluating the given function on the grid (and normalize by default). """
     if callable(func):
       self.func = func(self.grid.points)
     else:
@@ -155,16 +121,17 @@ class Wavefunction:
     return None
 
   def expectation_value(self, operator:'Operator') -> complex:
-    """ evaluates the expectation value of the operator with the wave function  `<self|op(self)>`"""
+    """ Return the expectation value of the operator with the wave function: `<self|op(self)>`. """
     return self.scalar_prod(operator(self))
 
   def variance(self, operator: 'Operator') -> complex:
-    """ evaluates the variance of the operator with the wave function """
+    """ Return the variance of the operator with the wave function. """
     expval = self.expectation_value(operator)
     dummy = operator(self) - self*expval
     return dummy.scalar_prod(dummy)
 
   def impose_boundary_condition(self):
+    """ Force the wave function to respect the boundary conditions of the grid. """
     if self.grid.bc=='vanishing':
       self.func[0], self.func[-1] = 0., 0.
     elif self.grid.bc=='periodic' or self.grid.bc=='open':
@@ -173,9 +140,7 @@ class Wavefunction:
       raise NotImplementedError('unknown boundary condition `'+self.bc+'`. Stop!')
     
   def get_observables(self, ops:list):
-    """
-    Return the expectation value and variance for each operator in the list of operators `ops`.
-    """
+    """ Return the expectation value and variance for each operator in the list of operators `ops`. """
     obs = []
     for _op in ops:
       obs.append( [self.expectation_value(_op), self.variance(_op)] )
@@ -183,8 +148,11 @@ class Wavefunction:
   
   def evolve(self, tgrid:np.ndarray, op_rhs:'OperatorTD') -> "WavefunctionTD":
     """ 
-    propagate the wavefunction in time 
-    - return a `WavefunctionTD` object
+    Propagate the given initial wavefunction in time, where the rhs of the time evolution equation is `op_rhs`.
+    $$
+    \partial_t  \Psi = \hat{O}_\text{rhs} \Psi
+    $$
+    Returns a `WavefunctionTD` object.
     """
     # callable for the ivp solver
     def ipvfunc(t, vec): return op_rhs.sparse_mat(t) * vec
@@ -192,7 +160,6 @@ class Wavefunction:
     # solve 
     data = integrate.solve_ivp(fun=ipvfunc, t_span=[tgrid[0], tgrid[-1]], y0=self.func, t_eval=tgrid, method="RK45")
   
-
     # make the raw output data to class wavefuctions again
     tdwf = WavefunctionTD(self.grid)
     for _i in range(tgrid.size):
@@ -202,15 +169,9 @@ class Wavefunction:
     return tdwf
    
   def show(self, file:str=None, absphase:bool=False):
-    """
-    Save a graphical representation of the wave function to file.
-    """
+    """ Show a graphical representation of the wave function or save it to file. """
     import matplotlib.pyplot as plt
-    from matplotlib import cm
-    from matplotlib import colors as mcolors
-    figsize = (12, 7)
-    # fig, ax = plt.subplots(figsize=figsize)
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=_wf_figsize)
     ax.set_xlabel('position')
     ax.set_xlim((self.grid.xmin, self.grid.xmax))
     ax.set_ylabel('wave function')
@@ -224,7 +185,7 @@ class Wavefunction:
       ax.plot(self.grid.points, np.real(self.func), label='real part')
       ax.plot(self.grid.points, np.imag(self.func), label='imag part')
       fig.legend(loc='upper center', ncol=3)  # , bbox_to_anchor=(1., 1.))
-      
+    # show or save
     if file:
       plt.savefig(file)
       plt.close()
@@ -232,22 +193,48 @@ class Wavefunction:
       plt.show()
 
 
-def GaussianWavePackage(grid: Grid, mu: float = 0, sigma: float = 1, k: float=1):
+def GaussianWavePackage(grid: Grid, mu: float = 0, sigma: float = 1, k: float = 1) -> Wavefunction:
+  """ 
+  Represents a travelling Gaussian wave package. 
+
+  Parameters
+  ----------
+  grid : Grid
+    Grid to evaluate function on.
+  mu : float = 0
+    Expectation value of the position.
+  sigma : float = 1 
+    Width of the position distribution (linked to variance).
+  k : float=1
+    Wave vector/number 
+
+  Returns
+  -------
+  wf: Wavefunction
+    Gaussian wave package wave function.
+
+  Notes
+  -----
+  The function itself is not normalized, but the wave function gets normalized when calling `.from_func`
+  """
   def prep_wf(x): return np.exp(-(x-mu)**2 / (2.0 * sigma**2)) * np.exp(-1j * k * x)
   wf = Wavefunction(grid)
   wf.from_func(prep_wf)
   return wf
 
+  GaussianWavePackage
+
 class WavefunctionTD:
-  """ wave function with time dependence """
+  """ time-dependent wave function class """
   # todo impl algebra
   def __init__(self, grid:Grid):
     self.grid = grid
     self.wflist = []
 
   def show(self, tgrid:Iterable, file: str = None, pot: Callable[[float, float], float] = None ) -> Union[None, FuncAnimation]:
-    """Plot the evolution of the wave function
-     - optionally plot an additional corresponding time dependend potential
+    """
+    Plot the evolution of the wave function
+     - optionally plot an additional corresponding time-dependent potential
      - the animation is stored under `file` if present
      - the animation object is returned
     """
@@ -276,10 +263,7 @@ class WavefunctionTD:
     ax.set_ylim((wf_min, wf_max))
     ax.set_xlim(self.grid.xmin, self.grid.xmax)
     bar, line_wf = mpl_absphase_plot(fig, ax, self.grid, self.wflist[0].func)
-    # cbar_ax = fig.add_axes([0.95, 0.55, 0.025, 0.4])
-    # cbar = fig.colorbar(_wf_anim_cm_mappable, cax=cbar_ax)
     cb_ax = fig.add_axes([0.83, 0.5, 0.02, 0.4])
-    # fig.colorbar(_wf_anim_cm_mappable, cax=cb_ax)
     cbar = mpl_absphase_colorbar(fig, ax, cax=cb_ax)
     if pot:
       ax2.set_ylabel('potential')

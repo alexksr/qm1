@@ -198,47 +198,35 @@ class OperatorConst:
 
 
 def IdentityOp(grid: Grid) -> OperatorConst:
-  """
-   return the identity operator for a given system (instance of `QMSystem`) 
-  """
+  """ Returns the identity operator for a given system (instance of `QMSystem`) """
   _op = OperatorConst(grid)
   _op.local(1.)
   _op.finalize()
   return _op
 
-
-
 def ZeroOp(grid: Grid) -> OperatorConst:
-  """
-   return the zero operator for a given system (instance of `QMSystem`) 
-  """
+  """ Returns the zero operator for a given system (instance of `QMSystem`) """
   _op = OperatorConst(grid)
   _op.local(0.)
   _op.finalize()
   return _op
 
 def PositionOp(grid:Grid) -> OperatorConst:
-  """
-   return the position operator (local) for a given system (instance of `QMSystem`) 
-  """
+  """ Returns the position operator (local) for a given system (instance of `QMSystem`) """
   _op = OperatorConst(grid)
   _op.local(grid.points)
   _op.finalize()
   return _op
 
 def GradientOp(grid:Grid) -> OperatorConst:
-  """
-   return the gradient operator for a given system (instance of `QMSystem`) 
-  """
+  """ Returns the gradient operator for a given system (instance of `QMSystem`) """
   _op = OperatorConst(grid)
   _op.first_deriv()
   _op.finalize()
   return _op
 
 def MomentumOp(grid:Grid) -> OperatorConst:
-  """
-   return the momentum operator for a given system (instance of `QMSystem`) 
-  """
+  """ Returns the momentum operator for a given system (instance of `QMSystem`) """
   _op = OperatorConst(grid)
   _op.first_deriv()
   _op = _op * (-1j)
@@ -246,9 +234,7 @@ def MomentumOp(grid:Grid) -> OperatorConst:
   return _op
 
 def LaplaceOp(grid:Grid) -> OperatorConst:
-  """
-   return the laplace operator for a given system (instance of `QMSystem`) 
-  """
+  """ Returns the laplace operator for a given system (instance of `QMSystem`) """
   _op = OperatorConst(grid)
   _op.second_deriv()
   _op.finalize()
@@ -256,7 +242,7 @@ def LaplaceOp(grid:Grid) -> OperatorConst:
 
 def StatPotentialOp(qsys:QMSystem) -> OperatorConst:
   """
-    Return the potential operator (local) for a given system (instance of `QMSystem`) 
+    Return the potential operator (local) for a given system (instance of `QMSystem`).
     When vanishing bounadary conditions are set, add an "infinite" potential well at the lower and upper bounds of the grid
     For periodic b.c. the user must specify a periodic potential, otherwise the potential will jump.
   """
@@ -266,23 +252,17 @@ def StatPotentialOp(qsys:QMSystem) -> OperatorConst:
   return _op
 
 def KineticOp(qsys:QMSystem) -> OperatorConst:
-  """
-    Return the kinetic energy operator for a given system (instance of `QMSystem`) 
-  """
+  """ Returns the kinetic energy operator for a given system (instance of `QMSystem`) """
   _op = LaplaceOp(qsys.grid)
   _op = _op * (-0.5/qsys.mass)
   _op.finalize()
   return _op
 
 def make_efficient(ops:list):
-  """
-    Return more efficient Operators.
-    Change the matrix representation `.tocsr()` from `scipy.sparse` after setting up the operators.
-  """
+  """ Make the operators in `ops` more efficient. Changes the matrix representation `.tocsr()` from `scipy.sparse` after setting up the operators. """
   for _op in ops:
     _op.finalize()
   return
-  
 
 class OperatorTD:
   """
@@ -307,7 +287,6 @@ class OperatorTD:
   # TODO: hints for easy overflow since, e.g., $x*t*Id - x*t*Id$ is not automatically reduced to Zero
   # TODO: impl make_efficient
   """
-
   def __init__(self, grid: Grid, func: callable = None, op: OperatorConst = None):
     self.grid = grid
     # constant part
@@ -331,10 +310,6 @@ class OperatorTD:
       self.ops.append(IdentityOp(self.grid))
     return
 
-
-  def info(self):
-    return type(self), ' with num=', self.num, 'TD parts'
-
   def __call__(self, t: float, wavefunc: Wavefunction) -> Wavefunction:
     """
     Apply the operator at time t to a (wave) function.
@@ -354,8 +329,8 @@ class OperatorTD:
     return _str
 
   def eval(self, t: float) -> OperatorConst:
-    """
-    Evaluate the operator at a specific time, returning a constant operator.
+    """ 
+    Evaluate the operator at a specific time, returning a instance of `OperatorConst`. 
     """
     result = self.constOP.copy()
     for func, op in zip(self.funcs, self.ops):
@@ -377,6 +352,9 @@ class OperatorTD:
     return self.sparse_mat(t).todense()
 
   def copy(self):
+    """
+    Return a copy of the operator.
+    """
     result = OperatorTD(self.grid)
     result.constOP = self.constOP + 0 
     result.num = 0 + self.num
@@ -384,8 +362,7 @@ class OperatorTD:
     result.ops = [] + self.ops
     return result
 
-
-  def __init__(self, grid: Grid, func: callable = None, constop: OperatorConst = None):
+  def __init__(self, grid: Grid, func: callable = None, op: OperatorConst = None):
     self.grid = grid
     # constant part
     self.constOP = ZeroOp(self.grid)
@@ -396,23 +373,21 @@ class OperatorTD:
     # list of constant operators
     self.ops = []
     # if there is a func or constop, readily add it:
-    if not func is None and not constop is None:
+    if not func is None and not op is None: # add `func * op` as operator
       self.num = 1
       self.funcs.append(func)
-      self.ops.append(constop)
-    elif func is None and not constop is None:
-      self.constOP = constop
-    elif not func is None and constop is None:
+      self.ops.append(op)
+    elif func is None and not op is None: # add time-constant op `op`
+      self.constOP = op
+    elif not func is None and op is None:  # add `func * unitop` as operator
       self.num = 1
       self.funcs.append(func)
       self.ops.append(IdentityOp(self.grid))
-
+    return
 
 
   def __add__(self, other) -> 'OperatorTD':
-    """
-    Add operator and another quantitiy.
-    """
+    """ Add operator and another quantitiy. """
     result = self.copy()
     # check behaviour for each instance
     if isinstance(other, OperatorConst):
@@ -433,9 +408,10 @@ class OperatorTD:
     return result
 
   def __mul__(self, other) -> 'OperatorTD':
-    """ multiply a operator by a constant or element wise with another Operator: used for for combining operators to more complex operators
+    """ Return the product of operator `self` with a constant or with a time-constant operator. 
+    REMARK: Multiplication of `OperatorTD` with `OperatorTD` is allowed only in the case where the rightmost operator is only formally a `OperatorTD` consisting of a time-constant pert only.
     $O_T * O_c = ( O_0 + \sum_{k=1}^N f_k(t) O_k ) * O_c = O_0O_c + \sum_{k=1}^N f_k(t) O_kO_c $
-    $O_T * \tilde{O}_T = ( O_0 + \sum_{k=1}^N f_k(t) O_k ) * ( \tilde{O}_0 + \sum_{k=1}^N f_k(t) \tilde{O}_k ) =  O_0\tilde{O}_0 + \sum_{k,k=1}^{NB,\tilde{N}} f_k(t)\tilde{f}_k(t) O_k\tilde{O}_k  $
+    $O_T * \tilde{O}_T = ( O_0 + \sum_{k=1}^N f_k(t) O_k ) * ( \tilde{O}_0 ) =  O_0\tilde{O}_0 + \sum_{k=1}^{N} f_k(t) O_k\tilde{O}_0  $
     """
     result = self.copy()
     # check behaviour for each instance
@@ -446,7 +422,7 @@ class OperatorTD:
       result.ops = [_op * other for _op in result.ops]
     elif isinstance(other, OperatorTD) and other.num == 0:
       # can only mul a OperatorTD with a constant Operator: only `TDOp*ConstOp` allowed
-      # when other.num==0 other only holds a ConstOperator
+      # when other.num==0 `other` only holds a ConstOperator
       # mul the constant part
       result.constOP = self.constOP * other.constOP
       # mul all new TD parts in self.ops with other
@@ -483,7 +459,7 @@ class OperatorTD:
 
 
   def __pow__(self, power: int) -> 'OperatorTD':
-    """ exponentiate an operator : used for for combining operators to more complex operators  """
+    """ Return an exponentiated operator. """
     result = self.copy()
     for _ in range(power-1):
       result = result * self
@@ -498,16 +474,14 @@ class OperatorTD:
     return local
 
   def finalize(self):
-    """ make the sparse matrices more efficient with the csr format """
+    """ Make sparse matrices more efficient with the csr format. """
     self.constOP.finalize()
     for _op in self.ops:
       _op.finalize()
     return None
 
   def show(self, tgrid:np.ndarray, file: str = None) -> Union[None, FuncAnimation]:
-    """
-    Save a graphical representation of the matrix to file.
-    """
+    """ Show a graphical representation of the matrix or return the animation object. """
     import matplotlib.pyplot as plt
     # disable immediate plotting in interactive mode
     plt.ioff()
@@ -543,17 +517,13 @@ class OperatorTD:
 
 
 def TDPotentialOp(qsys:QMSystem)->OperatorTD: 
-  """
-  return a dipol potential operator from a time dependent callable.  
-  """
+  """ Returns the time-dependend part of the systems potential operator. """
   _op = OperatorTD(qsys.grid, func=qsys.td_pot)
   return _op
 
 
 def HamiltonOp(qsys: QMSystem) -> Union[OperatorConst, OperatorTD]:
-  """
-   return the hamilton operator for a given grid system (instance of `QMSystem`)
-  """
+  """ Returns the Hamilton operator for a given system. """
   # static part
   _op = KineticOp(qsys) + StatPotentialOp(qsys)
 
@@ -562,7 +532,6 @@ def HamiltonOp(qsys: QMSystem) -> Union[OperatorConst, OperatorTD]:
     _op += TDPotentialOp(qsys)
   except AttributeError:
     pass
-
 
   # make more efficient
   _op.finalize()

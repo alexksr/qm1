@@ -1,5 +1,6 @@
 # TODO
 ## Recent
+- [ ] impl tdwf algebra
 - [ ] non uniform grids
 - [ ] add a check to make sure the local ffmpeg installation can animate gifs correctly (codec, mpl.anim.writers)
 - [ ] impl eigenfunctions of the box potential as built-in WFs

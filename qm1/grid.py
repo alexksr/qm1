@@ -2,23 +2,35 @@ from abc import abstractmethod
 from scipy import sparse
 import numpy as np
 
+
 class Grid:
   """
-  Generic 1-dimensional abstract grid class.
+  
   Features:
    - integration
    - differentiation
    - todo: interpolation 
-  To be implemented by specific types of grids.
+  """
+  """
+    Generic 1-dimensional abstract grid class.
+    Features integration and differentiation.
+
+    Notes
+    -----
+    Abstract type: To be implemented by specific types of grids.
   """
   def __init__(self, boundary_condition: str, xmin: float, xmax: float, num: int) -> None:
-    """
-    bc - type of boundary condition: one of 'vanishing', 'periodic', 'open'
-    xmin - smallest grid point 
-    xmax - greatest grid point 
-    num - number of grid points
-    cmin - smallest point that belongs to the extend of the grid
-    cmax - greatest point that belongs to the extend of the grid
+    """ 
+    Parameters
+    ----------
+    boundary_condition: str
+        type of boundary condition: one of 'vanishing', 'periodic', 'open'
+    xmin: float
+        smallest grid point
+    xmax: float
+        greatest grid point
+    num: int
+        number of grid points    
     """
     if not boundary_condition in ['vanishing', 'periodic', 'open']: 
       raise NotImplementedError('unknown boundary condition `'+self.bc+'`!')
@@ -42,7 +54,7 @@ class Grid:
 
 
 class UniformGrid(Grid):
-  """ Implementation of a grid with uniform grid spacing. """
+  """ Implementation of a `Grid` class with uniform grid spacing. """
   def __init__(self,  boundary_condition: str, xmin: float, xmax: float, num: int) -> None:
     """ 
     Set up an uniform grid. 

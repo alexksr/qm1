@@ -10,7 +10,6 @@ class QMSystem:
     - stationary potential
     - optionally: time-dependent potential
   """
-
   def __init__(self,  grid: Grid, stat_pot: Callable[[float], float], td_pot: Callable[[float, float], float] = None, mass: float = 1) -> None:
     # store the grid
     self.grid = grid
