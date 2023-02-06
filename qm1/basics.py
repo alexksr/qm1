@@ -5,9 +5,24 @@ import numpy as np
 _timit_num_runs = 10
 
 
-def nmetric(a: float, b: float, eps: float = 1E-10) -> float:
-  """Return a numerically safe relative metric."""
-  return 0.5 * np.linalg.norm(a-b) / (np.linalg.norm(a) + np.linalg.norm(b) + eps)
+def nmetric(a: np.ndarray, b: np.ndarray, eps: float = 1E-10) -> float:
+  """
+  Return a numerically safe relative metric.
+  
+  Parameters
+  ----------
+  a,b: ndarray
+    Numpy arrays of the same shape.
+  eps: float
+    Limiting value on the denominator.
+  
+  Returns
+  -------
+  metric: float
+  Numerically safe pseudo-metric of how close ``a`` and ``b`` are.
+  """
+  metric = 0.5 * np.linalg.norm(a-b) / (np.linalg.norm(a) + np.linalg.norm(b) + eps)
+  return metric
 
 
 

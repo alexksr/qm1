@@ -48,9 +48,10 @@ class Wavefunction:
   def __init__(self, grid: Grid):
     """
     Initializes the wave function class from a given grid.
+
     Parameters
     ----------
-    grid: Grid
+    ``grid: Grid``
       Determines grid positions.
     """
     self.grid  = grid
@@ -108,7 +109,7 @@ class Wavefunction:
     return None
 
   def from_func(self, func:Callable[[float], Union[float,complex]] , normalize: bool = True):
-    """Set the  wave function values by evaluating the given function on the grid (and normalize by default). """
+    """Set the  wave function values by evaluating the given callable on the grid (and normalize by default). """
     if callable(func):
       self.func = func(self.grid.points)
     else:
@@ -169,7 +170,25 @@ class Wavefunction:
     return tdwf
    
   def show(self, file:str=None, absphase:bool=False):
-    """ Show a graphical representation of the wave function or save it to file. """
+    """
+    Show a graphical representation of the wave function or save it to file. 
+    
+    Parameters
+    ----------
+    ``file : str = None``
+      When not ``None`` the plot will be saved to ``file``, else be shown via ``plt.show()``
+    ``absphase : bool = False``
+      When not ``None`` plot the wave function as absolute value and phase, else as real and imaginary part.
+
+    Returns
+    -------
+    ``wf: Wavefunction``
+      Gaussian wave package wave function.
+
+    Notes
+    -----
+    The function itself is not normalized, but the wave function gets normalized when calling `.from_func`
+    """
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots(figsize=_wf_figsize)
     ax.set_xlabel('position')
@@ -199,18 +218,18 @@ def GaussianWavePackage(grid: Grid, mu: float = 0, sigma: float = 1, k: float = 
 
   Parameters
   ----------
-  grid : Grid
+  ``grid : Grid``
     Grid to evaluate function on.
-  mu : float = 0
+  ``mu : float = 0``
     Expectation value of the position.
   sigma : float = 1 
     Width of the position distribution (linked to variance).
-  k : float=1
+  ``k : float=1``
     Wave vector/number 
 
   Returns
   -------
-  wf: Wavefunction
+  ``wf: Wavefunction``
     Gaussian wave package wave function.
 
   Notes
@@ -225,18 +244,46 @@ def GaussianWavePackage(grid: Grid, mu: float = 0, sigma: float = 1, k: float = 
   GaussianWavePackage
 
 class WavefunctionTD:
-  """ time-dependent wave function class """
-  # todo impl algebra
+  """
+  Time-dependent wave function class
+
+  Notes
+  -----
+    Implemented as a simple list of type ``Wavefunction``
+
+  TODO
+  ----
+   Implement better algebra.
+  """
   def __init__(self, grid:Grid):
+    """
+    Init the TD wave function.
+
+    Parameters
+    ----------
+    ``grid : Grid``
+      Grid to represent the TD wave function on
+    """
     self.grid = grid
     self.wflist = []
 
   def show(self, tgrid:Iterable, file: str = None, pot: Callable[[float, float], float] = None ) -> Union[None, FuncAnimation]:
     """
     Plot the evolution of the wave function
-     - optionally plot an additional corresponding time-dependent potential
-     - the animation is stored under `file` if present
-     - the animation object is returned
+
+    Parameters
+    ----------
+    ``tgrid:Iterable``
+      Iterable representing the time grid.
+    ``file: str = None``
+      Optional file to save the animation to.
+    ``pot: Callable[[float, float], float] = None``
+      Optional callable which returns the potentials value from sapce and time.
+
+    Returns
+    -------
+    ``ani: FuncAnimation``
+      Returns the animation object.
     """
     import matplotlib.pyplot as plt
     # disable immediate plotting in interactive mode

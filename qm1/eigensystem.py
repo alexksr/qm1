@@ -9,11 +9,12 @@ class Eigensystem:
   def __init__(self, operator: OperatorConst, num:int=10):
     """
     Calculates and stores the eigensystem (with `num` eigen states) of `operator`.
+    
     Parameters
     ----------
-    operator : OperatorConst
+    ``operator : OperatorConst``
       (Hermitian) operator to calc eigensystem for.
-    num : int
+    ``num : int``
       Number of eigen states (and values) to compute.
   """
     self.num = num
@@ -41,13 +42,14 @@ class Eigensystem:
 
     Parameters
     ----------
-    wavefunc: Wavefunction
+    ``wavefunc: Wavefunction``
       wave function to decompose 
+
     Returns
     -------
-    coefficients:
+    ``coefficients:``
       List of floats or complex coeficients (with length given by ``self.num``)
-    rest: float
+    ``rest: float``
       Missing ``probability`` to fullfill normalization.
     """
     coefficients = np.zeros((self.num))
@@ -66,9 +68,9 @@ class Eigensystem:
 
     Parameters
     ----------
-    file: str
+    ``file: str``
       File to save the figure to. When present the figure is saved to file, otherwise (if 'None') the figure will be displayed immediately.
-    op_pot: OperatorConst
+    ``op_pot: OperatorConst``
       When present plot the potential operator (or any local operator) next to the eigensystem.
     """
     if not op_pot is None:
@@ -104,17 +106,16 @@ class Eigensystem:
   def get_observables(self, ops: List[OperatorConst]) -> np.ndarray:
     """ 
     Return the expectation value and variance for each operator in the list of operators `ops` for each eigenstate in the eigensystem.
-    Plot the eigensystem.
-    Returns a plot of the eigen vector and corresponding eigen values.
-
+    
     Parameters
     ----------
-    ops: List[OperatorConst]
+    ``ops: List[OperatorConst]``
       List of operators to eval across the eigensystem.
+
     Returns
     -------
-    observations : np.ndarray
-      Array of obervations ordered like obervations[eigenstate][operator][exp/var]
+    ``observations : np.ndarray``
+      Array of obervations ordered like obervations[eigenstate][operator][exp,var]
     """
     observations = []
     for _eigstate in self.eigstates:
