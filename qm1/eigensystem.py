@@ -61,7 +61,7 @@ class Eigensystem:
     rest = 1.-np.sum(np.abs(coefficients)**2)
     return coefficients, rest
 
-  def show(self, file:str=None, op_pot:OperatorConst=None):
+  def show(self, file:str=None, state_range:tuple=None, op_pot:OperatorConst=None):
     """
     Plot the eigensystem.
     Returns a plot of the eigen vector and corresponding eigen values.
@@ -72,7 +72,14 @@ class Eigensystem:
       File to save the figure to. When present the figure is saved to file, otherwise (if 'None') the figure will be displayed immediately.
     ``op_pot: OperatorConst``
       When present plot the potential operator (or any local operator) next to the eigensystem.
+    ``state_range: tuple``
+      When present plot only the specified range of states. For example `state_range=(2,4)`
     """
+    # handle range
+    if state_range:
+      _state_range = state_range
+    else:
+      _state_range = (0, len(self.eigstates))
     if not op_pot is None:
       fig, (ax0, ax1)=plt.subplots(2, 1, gridspec_kw = {'height_ratios': [4, 2]}, sharex=True)
       fig.subplots_adjust(hspace = .0)
@@ -85,12 +92,14 @@ class Eigensystem:
     ax0.set_xlabel('position')
     ax0.set_xlim((self.grid.xmin, self.grid.xmax))
     for _i, (_eigs, _col, _a) in enumerate(zip(self.eigstates, colors, alphas)):
-      ax0.plot(self.grid.points, _eigs.func, label='state '+str(_i), alpha=_a, color=_col)
+      if _state_range[0] <= _i <= _state_range[1]:
+        ax0.plot(self.grid.points, _eigs.func, label='state '+str(_i), alpha=_a, color=_col)
     ax0.legend(loc='center right')
     axt = ax0.twinx()
     axt.set_ylabel('operator eigenvalues')
     for _eigval, _col, _a in zip(self.eigvals, colors, alphas):
-      axt.axhline(_eigval, color=_col, alpha=_a, ls='--')
+      if _state_range[0] <= _i <= _state_range[1]:
+        axt.axhline(_eigval, color=_col, alpha=_a, ls='--')
     if not op_pot is None:
       ax1.set_xlim((self.grid.xmin, self.grid.xmax))
       ax1.plot(self.grid.points, op_pot.get_diag(), "k")
