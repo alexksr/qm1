@@ -97,7 +97,7 @@ class Eigensystem:
     ax0.legend(loc='center right')
     axt = ax0.twinx()
     axt.set_ylabel('operator eigenvalues')
-    for _i, (_eigs, _col, _a) in enumerate(zip(self.eigstates, colors, alphas)):
+    for _i, (_eigval, _col, _a) in enumerate(zip(self.eigvals, colors, alphas)):
       if _state_range[0] <= _i <= _state_range[1]:
         axt.axhline(_eigval, color=_col, alpha=_a, ls='--')
     if not op_pot is None:
